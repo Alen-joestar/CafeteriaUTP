@@ -1,0 +1,205 @@
+### Ejecutar manualmente en orden de arriba hacia abajo con la extensión REST Client.
+### Los request variables (token e IDs) se toman de las respuestas anteriores.
+### Reemplaza adminPassword por la clave actual del usuario ADMIN antes del login.
+@baseUrl = http://localhost:8080
+@adminPassword = CafeAdmin2026
+@studentPassword = EstudiantePrueba123
+
+### 01 - Estado de la API: esperado 200
+GET {{baseUrl}}/
+
+### 02 - Catálogo público sin token: esperado 200
+GET {{baseUrl}}/api/productos
+
+### 03 - Recursos protegidos sin token: esperado 401 o 403
+GET {{baseUrl}}/api/usuarios
+
+### 03b - Pedido protegido sin token: esperado 401 o 403
+GET {{baseUrl}}/api/pedidos
+
+### 03c - Token inválido no concede acceso: esperado 401 o 403
+GET {{baseUrl}}/api/usuarios
+Authorization: Bearer token-falso
+
+### 04 - Login administrador: esperado 200 y un token JWT
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identificador": "ADMIN",
+  "password": "{{adminPassword}}"
+}
+
+### 05 - CAFETERIA puede listar usuarios: esperado 200; password no debe aparecer
+GET {{baseUrl}}/api/usuarios
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### 06 - CAFETERIA crea estudiante temporal: esperado 201
+# @name crearEstudiantePrueba
+POST {{baseUrl}}/api/usuarios
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "codigo": "H-{{$guid}}",
+  "correo": "http-{{$guid}}@example.test",
+  "nombreCompleto": "Estudiante de prueba HTTP",
+  "password": "{{studentPassword}}",
+  "rol": "ESTUDIANTE"
+}
+
+### 07 - CAFETERIA consulta el estudiante recién creado: esperado 200
+GET {{baseUrl}}/api/usuarios/{{crearEstudiantePrueba.response.body.$.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### 08 - CAFETERIA actualiza el estudiante: esperado 200
+PUT {{baseUrl}}/api/usuarios/{{crearEstudiantePrueba.response.body.$.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "codigo": "{{crearEstudiantePrueba.response.body.$.codigo}}",
+  "correo": "{{crearEstudiantePrueba.response.body.$.correo}}",
+  "nombreCompleto": "Estudiante HTTP actualizado",
+  "password": "",
+  "rol": "ESTUDIANTE"
+}
+
+### 09 - Login estudiante: esperado 200 y token JWT
+# @name loginEstudiante
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identificador": "{{crearEstudiantePrueba.response.body.$.codigo}}",
+  "password": "{{studentPassword}}"
+}
+
+### 10 - Estudiante no puede listar usuarios: esperado 403
+GET {{baseUrl}}/api/usuarios
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+
+### 11 - Estudiante no puede crear productos: esperado 403
+POST {{baseUrl}}/api/productos
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "nombre": "No debe crearse",
+  "descripcion": "Prueba de acceso denegado",
+  "precio": 1.0,
+  "categoria": "PRUEBA",
+  "disponible": true
+}
+
+### 12 - CAFETERIA crea producto temporal: esperado 201
+# @name crearProductoPrueba
+POST {{baseUrl}}/api/productos
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "nombre": "Producto HTTP {{$guid}}",
+  "descripcion": "Producto creado para pruebas integrales",
+  "precio": 5.0,
+  "categoria": "SANDWICH",
+  "disponible": true
+}
+
+### 13 - Lectura de producto es pública: esperado 200
+GET {{baseUrl}}/api/productos/{{crearProductoPrueba.response.body.$.id}}
+
+### 14 - CAFETERIA actualiza producto: esperado 200
+PUT {{baseUrl}}/api/productos/{{crearProductoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "nombre": "Producto HTTP actualizado",
+  "descripcion": "Producto actualizado para prueba",
+  "precio": 5.25,
+  "categoria": "SANDWICH",
+  "disponible": true
+}
+
+### 15 - Estudiante no puede actualizar productos: esperado 403
+PUT {{baseUrl}}/api/productos/{{crearProductoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "nombre": "No debe actualizarse",
+  "descripcion": "Prueba de acceso denegado",
+  "precio": 1.0,
+  "categoria": "PRUEBA",
+  "disponible": true
+}
+
+### 16 - Estudiante crea pedido con producto por ID: esperado 201, total esperado 10.50
+# @name crearPedidoPrueba
+POST {{baseUrl}}/api/pedidos
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "mensaje": "Pedido de prueba HTTP",
+  "metodoPago": "YAPE",
+  "items": [
+    { "productoId": {{crearProductoPrueba.response.body.$.id}}, "cantidad": 2 }
+  ]
+}
+
+### 17 - Estudiante consulta su propio pedido: esperado 200
+GET {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+
+### 18 - Estudiante lista sus pedidos: esperado 200
+GET {{baseUrl}}/api/pedidos
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+
+### 19 - Estudiante no puede actualizar el pedido: esperado 403
+PUT {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "clienteId": {{crearEstudiantePrueba.response.body.$.id}},
+  "estado": "LISTO",
+  "items": [
+    { "productoId": {{crearProductoPrueba.response.body.$.id}}, "cantidad": 2 }
+  ]
+}
+
+### 20 - Estudiante no puede eliminar el pedido: esperado 403
+DELETE {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginEstudiante.response.body.$.token}}
+
+### 21 - CAFETERIA puede consultar pedidos: esperado 200
+GET {{baseUrl}}/api/pedidos
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### 22 - CAFETERIA actualiza el pedido: esperado 200
+PUT {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "clienteId": {{crearEstudiantePrueba.response.body.$.id}},
+  "estado": "LISTO",
+  "items": [
+    { "productoId": {{crearProductoPrueba.response.body.$.id}}, "cantidad": 2 }
+  ]
+}
+
+### 23 - CAFETERIA elimina pedido temporal (ejecutar al final): esperado 204
+DELETE {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### 24 - CAFETERIA elimina estudiante temporal (sin pedidos): esperado 204
+DELETE {{baseUrl}}/api/usuarios/{{crearEstudiantePrueba.response.body.$.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### 25 - CAFETERIA elimina producto temporal (sin pedidos): esperado 204
+DELETE {{baseUrl}}/api/productos/{{crearProductoPrueba.response.body.$.id}}
+Authorization: Bearer {{loginAdmin.response.body.$.token}}

@@ -1,0 +1,34 @@
+@baseUrl = http://localhost:8080
+@adminPassword = reemplaza-con-la-clave-real-de-ADMIN
+
+### Ruta pública de estado: esperado 200
+GET {{baseUrl}}/
+
+### Catálogo público sin token: esperado 200
+GET {{baseUrl}}/api/productos
+
+### Ruta protegida sin token: esperado 403 (o 401 según el entry point)
+GET {{baseUrl}}/api/usuarios
+
+### Login válido: ejecuta esta petición antes de la petición protegida inferior
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identificador": "ADMIN",
+  "password": "{{adminPassword}}"
+}
+
+### Ruta protegida con JWT de la respuesta loginAdmin: esperado 200
+GET {{baseUrl}}/api/usuarios
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### Login inválido: esperado 4xx y sin token
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identificador": "ADMIN",
+  "password": "clave-incorrecta-de-prueba"
+}

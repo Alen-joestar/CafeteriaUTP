@@ -1,0 +1,49 @@
+@baseUrl = http://localhost:8080
+@adminToken = pega-el-jwt-del-administrador-aqui
+@studentToken = pega-el-jwt-de-un-estudiante-aqui
+@testPassword = PostmanTest123!
+
+### CRUD de usuarios requiere rol CAFETERIA. Reemplaza adminToken por el JWT obtenido en auth.http.
+
+### Listar usuarios como administrador: esperado 200, sin campos password
+GET {{baseUrl}}/api/usuarios
+Authorization: Bearer {{adminToken}}
+
+### Crear estudiante de prueba: esperado 201
+# @name crearUsuarioPrueba
+POST {{baseUrl}}/api/usuarios
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "codigo": "H-{{$guid}}",
+  "correo": "http-{{$guid}}@example.test",
+  "nombreCompleto": "Estudiante de prueba HTTP",
+  "password": "{{testPassword}}",
+  "rol": "ESTUDIANTE"
+}
+
+### Consultar el estudiante recién creado: esperado 200
+GET {{baseUrl}}/api/usuarios/{{crearUsuarioPrueba.response.body.$.id}}
+Authorization: Bearer {{adminToken}}
+
+### Actualizar el estudiante: esperado 200
+PUT {{baseUrl}}/api/usuarios/{{crearUsuarioPrueba.response.body.$.id}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "codigo": "{{crearUsuarioPrueba.response.body.$.codigo}}",
+  "correo": "{{crearUsuarioPrueba.response.body.$.correo}}",
+  "nombreCompleto": "Estudiante HTTP actualizado",
+  "password": "",
+  "rol": "ESTUDIANTE"
+}
+
+### Estudiante no puede listar usuarios: esperado 403
+GET {{baseUrl}}/api/usuarios
+Authorization: Bearer {{studentToken}}
+
+### Eliminar el estudiante de prueba (ejecutar al final; no tendrá pedidos): esperado 204
+DELETE {{baseUrl}}/api/usuarios/{{crearUsuarioPrueba.response.body.$.id}}
+Authorization: Bearer {{adminToken}}

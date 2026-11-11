@@ -1,0 +1,63 @@
+@baseUrl = http://localhost:8080
+@adminToken = pega-el-jwt-del-administrador-aqui
+@studentToken = pega-el-jwt-del-estudiante-aqui
+@studentId = reemplaza-por-el-id-del-estudiante
+@productId = reemplaza-por-el-id-de-un-producto-disponible
+
+### Crear pedido como estudiante. El servidor obtiene el cliente desde el JWT.
+# @name crearPedidoPrueba
+POST {{baseUrl}}/api/pedidos
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "mensaje": "Pedido de prueba HTTP",
+  "metodoPago": "YAPE",
+  "items": [
+    { "productoId": {{productId}}, "cantidad": 2 }
+  ]
+}
+
+### Listar pedidos propios como estudiante: esperado 200
+GET {{baseUrl}}/api/pedidos
+Authorization: Bearer {{studentToken}}
+
+### Leer el pedido propio: esperado 200
+GET {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{studentToken}}
+
+### Estudiante no puede actualizar pedidos: esperado 403
+PUT {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "clienteId": {{studentId}},
+  "estado": "LISTO",
+  "metodoPago": "YAPE",
+  "items": [ { "productoId": {{productId}}, "cantidad": 2 } ]
+}
+
+### CAFETERIA puede consultar todos los pedidos: esperado 200
+GET {{baseUrl}}/api/pedidos
+Authorization: Bearer {{adminToken}}
+
+### CAFETERIA actualiza el pedido: esperado 200
+PUT {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "clienteId": {{studentId}},
+  "estado": "LISTO",
+  "metodoPago": "YAPE",
+  "items": [ { "productoId": {{productId}}, "cantidad": 2 } ]
+}
+
+### Estudiante no puede eliminar pedidos: esperado 403
+DELETE {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{studentToken}}
+
+### CAFETERIA elimina el pedido de prueba (ejecutar al final): esperado 204
+DELETE {{baseUrl}}/api/pedidos/{{crearPedidoPrueba.response.body.$.id}}
+Authorization: Bearer {{adminToken}}

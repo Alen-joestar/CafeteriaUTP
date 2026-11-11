@@ -1,0 +1,171 @@
+{
+  "info": {
+    "_postman_id": "81453823-010b-44cf-92f0-17b79b3f6990",
+    "name": "Cafetería API - Seguridad y CRUD",
+    "description": "Pruebas funcionales ordenadas para autenticación JWT, permisos por rol y CRUD de usuarios, productos y pedidos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Estado de la API",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('API responde 200', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "02 - Catálogo público",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/productos" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('GET productos público responde 200', function () { pm.response.to.have.status(200); });", "pm.test('La respuesta es una lista', function () { pm.expect(pm.response.json()).to.be.an('array'); });"] } }]
+    },
+    {
+      "name": "03 - Usuarios sin token (debe denegar)",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/usuarios" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Sin token, usuarios devuelve 401 o 403', function () { pm.expect([401, 403]).to.include(pm.response.code); });"] } }]
+    },
+    {
+      "name": "04 - Pedidos sin token (debe denegar)",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/pedidos" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Sin token, pedidos devuelve 401 o 403', function () { pm.expect([401, 403]).to.include(pm.response.code); });"] } }]
+    },
+    {
+      "name": "05 - Token inválido (debe denegar)",
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer token-falso" }], "url": "{{baseUrl}}/api/usuarios" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Un JWT inválido no concede acceso', function () { pm.expect([401, 403]).to.include(pm.response.code); });"] } }]
+    },
+    {
+      "name": "06 - Login administrador",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"identificador\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Login ADMIN responde 200', function () { pm.response.to.have.status(200); });", "const body = pm.response.json();", "pm.test('Se devuelve JWT', function () { pm.expect(body.token).to.be.a('string').and.not.empty; });", "pm.environment.set('adminToken', body.token);"] } }]
+    },
+    {
+      "name": "07 - Login incorrecto (debe fallar)",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"identificador\": \"{{adminUsername}}\",\n  \"password\": \"clave-incorrecta-de-prueba\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Credenciales incorrectas no devuelven éxito', function () { pm.expect(pm.response.code).to.be.oneOf([400, 401, 403]); });", "let body = {}; try { body = pm.response.json(); } catch (e) {}", "pm.test('La respuesta de login incorrecto no contiene JWT', function () { pm.expect(body.token).to.not.exist; });"] } }]
+    },
+    {
+      "name": "08 - CAFETERIA lista usuarios",
+      "request": { "method": "GET", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/usuarios" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('CAFETERIA puede listar usuarios', function () { pm.response.to.have.status(200); });", "const users = pm.response.json();", "pm.test('La respuesta no expone password', function () { users.forEach(function (u) { pm.expect(u).not.to.have.property('password'); }); });", "const admin = users.find(function (u) { return u.codigo === pm.environment.get('adminUsername'); });", "pm.test('El usuario ADMIN existe', function () { pm.expect(admin).to.exist; });", "pm.environment.set('adminId', admin.id);"] } }]
+    },
+    {
+      "name": "09 - Crear estudiante de prueba",
+      "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.environment.set('runId', Date.now().toString());"] } }, { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('CAFETERIA crea estudiante', function () { pm.response.to.have.status(201); });", "pm.environment.set('studentId', pm.response.json().id);", "pm.environment.set('studentCode', pm.response.json().codigo);", "pm.environment.set('studentEmail', pm.response.json().correo);"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"PM{{runId}}\",\n  \"correo\": \"postman.{{runId}}@example.test\",\n  \"nombreCompleto\": \"Estudiante Postman\",\n  \"password\": \"{{studentPassword}}\",\n  \"rol\": \"ESTUDIANTE\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/usuarios" }
+    },
+    {
+      "name": "10 - Leer estudiante creado",
+      "request": { "method": "GET", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/usuarios/{{studentId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('GET usuario por ID responde 200', function () { pm.response.to.have.status(200); });", "pm.test('El ID es el creado', function () { pm.expect(pm.response.json().id).to.eql(Number(pm.environment.get('studentId'))); });"] } }]
+    },
+    {
+      "name": "11 - Actualizar estudiante",
+      "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"{{studentCode}}\",\n  \"correo\": \"{{studentEmail}}\",\n  \"nombreCompleto\": \"Estudiante actualizado por Postman\",\n  \"password\": \"\",\n  \"rol\": \"ESTUDIANTE\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/usuarios/{{studentId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('PUT usuario responde 200', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "12 - Login estudiante",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"identificador\": \"{{studentCode}}\",\n  \"password\": \"{{studentPassword}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/auth/login" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Login estudiante responde 200', function () { pm.response.to.have.status(200); });", "pm.environment.set('studentToken', pm.response.json().token);"] } }]
+    },
+    {
+      "name": "13 - Estudiante no puede listar usuarios",
+      "request": { "method": "GET", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/usuarios" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Estudiante recibe 403 en usuarios', function () { pm.response.to.have.status(403); });"] } }]
+    },
+    {
+      "name": "14 - Estudiante no puede crear productos",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"No debe crearse\",\n  \"descripcion\": \"Prueba de permiso\",\n  \"precio\": 1.0,\n  \"categoria\": \"PRUEBA\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/productos" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Estudiante recibe 403 al crear producto', function () { pm.response.to.have.status(403); });"] } }]
+    },
+    {
+      "name": "15 - Crear producto de prueba",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('POST producto responde 201', function () { pm.response.to.have.status(201); });", "pm.environment.set('productId', pm.response.json().id);"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Postman {{runId}}\",\n  \"descripcion\": \"Producto para prueba CRUD\",\n  \"precio\": 5.0,\n  \"categoria\": \"SANDWICH\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/productos" }
+    },
+    {
+      "name": "16 - Leer producto de prueba (público)",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/productos/{{productId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('GET producto por ID responde 200 sin token', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "17 - Actualizar producto",
+      "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Postman actualizado\",\n  \"descripcion\": \"Producto actualizado para prueba\",\n  \"precio\": 5.25,\n  \"categoria\": \"SANDWICH\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/productos/{{productId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('PUT producto responde 200', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "18 - Estudiante no puede actualizar productos",
+      "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"No debe actualizarse\",\n  \"descripcion\": \"Prueba de permiso\",\n  \"precio\": 1.0,\n  \"categoria\": \"PRUEBA\",\n  \"disponible\": true\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/productos/{{productId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Estudiante recibe 403 al actualizar producto', function () { pm.response.to.have.status(403); });"] } }]
+    },
+    {
+      "name": "19 - CAFETERIA crea pedido para comprobar aislamiento",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"clienteId\": {{adminId}},\n  \"mensaje\": \"Pedido de referencia Postman\",\n  \"metodoPago\": \"YAPE\",\n  \"items\": [ { \"productoId\": {{productId}}, \"cantidad\": 1 } ]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/pedidos" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('CAFETERIA puede crear pedido para un cliente explícito (201)', function () { pm.response.to.have.status(201); });", "pm.environment.set('cafeteriaOrderId', pm.response.json().id);"] } }]
+    },
+    {
+      "name": "20 - Estudiante no puede consultar pedido ajeno",
+      "request": { "method": "GET", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/pedidos/{{cafeteriaOrderId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Pedido ajeno se oculta al estudiante (404)', function () { pm.response.to.have.status(404); });"] } }]
+    },
+    {
+      "name": "21 - Crear pedido como estudiante",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"mensaje\": \"Pedido de prueba Postman\",\n  \"metodoPago\": \"YAPE\",\n  \"items\": [ { \"productoId\": {{productId}}, \"cantidad\": 2 } ]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/pedidos" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('POST pedido responde 201', function () { pm.response.to.have.status(201); });", "const order = pm.response.json();", "pm.test('El servidor vincula el pedido al estudiante autenticado', function () { pm.expect(order.clienteId).to.eql(Number(pm.environment.get('studentId'))); });", "pm.test('Total calculado con el precio actual del producto (10.50)', function () { pm.expect(order.total).to.eql(10.5); });", "pm.environment.set('orderId', order.id);"] } }]
+    },
+    {
+      "name": "22 - Estudiante consulta su pedido",
+      "request": { "method": "GET", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/pedidos/{{orderId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('El estudiante consulta su pedido (200)', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "23 - Estudiante lista sus pedidos",
+      "request": { "method": "GET", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/pedidos" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('GET pedidos responde 200', function () { pm.response.to.have.status(200); });", "const orders = pm.response.json();", "pm.test('La lista incluye el pedido propio', function () { pm.expect(orders.some(function (p) { return p.id === Number(pm.environment.get('orderId')); })).to.be.true; });", "pm.test('La lista no incluye pedido de otro cliente', function () { pm.expect(orders.some(function (p) { return p.id === Number(pm.environment.get('cafeteriaOrderId')); })).to.be.false; });"] } }]
+    },
+    {
+      "name": "24 - Estudiante no puede actualizar pedidos",
+      "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"clienteId\": {{studentId}},\n  \"estado\": \"LISTO\",\n  \"items\": [ { \"productoId\": {{productId}}, \"cantidad\": 2 } ]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/pedidos/{{orderId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Estudiante recibe 403 al actualizar pedido', function () { pm.response.to.have.status(403); });"] } }]
+    },
+    {
+      "name": "25 - Estudiante no puede eliminar pedidos",
+      "request": { "method": "DELETE", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{studentToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/pedidos/{{orderId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Estudiante recibe 403 al eliminar pedido', function () { pm.response.to.have.status(403); });"] } }]
+    },
+    {
+      "name": "26 - CAFETERIA lista pedidos",
+      "request": { "method": "GET", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/pedidos" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('CAFETERIA puede listar pedidos (200)', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "27 - CAFETERIA actualiza pedido",
+      "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "body": { "mode": "raw", "raw": "{\n  \"clienteId\": {{studentId}},\n  \"estado\": \"LISTO\",\n  \"items\": [ { \"productoId\": {{productId}}, \"cantidad\": 2 } ]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/pedidos/{{orderId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('CAFETERIA puede actualizar pedido (200)', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "28 - Persistencia de producto (ejecutar después de reiniciar API)",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/productos/{{productId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Producto persiste en MySQL (200)', function () { pm.response.to.have.status(200); });"] } }]
+    },
+    {
+      "name": "29 - Limpiar pedido de estudiante (ejecutar al final)",
+      "request": { "method": "DELETE", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/pedidos/{{orderId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('DELETE pedido responde 204', function () { pm.response.to.have.status(204); });"] } }]
+    },
+    {
+      "name": "30 - Limpiar pedido de referencia",
+      "request": { "method": "DELETE", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/pedidos/{{cafeteriaOrderId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('DELETE pedido de referencia responde 204', function () { pm.response.to.have.status(204); });"] } }]
+    },
+    {
+      "name": "31 - Limpiar estudiante de prueba (ejecutar después de sus pedidos)",
+      "request": { "method": "DELETE", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/usuarios/{{studentId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('DELETE estudiante responde 204', function () { pm.response.to.have.status(204); });"] } }]
+    },
+    {
+      "name": "32 - Limpiar producto de prueba (ejecutar al final)",
+      "request": { "method": "DELETE", "header": [], "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] }, "url": "{{baseUrl}}/api/productos/{{productId}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('DELETE producto responde 204', function () { pm.response.to.have.status(204); });"] } }]
+    }
+  ],
+  "variable": []
+}

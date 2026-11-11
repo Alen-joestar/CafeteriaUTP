@@ -1,0 +1,22 @@
+[ {
+  "id" : 1,
+  "codigo" : "MIA_PIURA",
+  "correo" : "mia.piura@cafeteria.utp.edu.pe",
+  "nombreCompleto" : "Personal Mia Piura",
+  "password" : null,
+  "rol" : "CAFETERIA"
+}, {
+  "id" : 3,
+  "codigo" : "U2303001",
+  "correo" : "carlos.perez@utp.edu.pe",
+  "nombreCompleto" : "Carlos Perez",
+  "password" : null,
+  "rol" : "ESTUDIANTE"
+}, {
+  "id" : 6,
+  "codigo" : "U2321622",
+  "correo" : "u2321622@utp.edu.pe",
+  "nombreCompleto" : "Carlos Mendoza",
+  "password" : null,
+  "rol" : "ESTUDIANTE"
+} ]

@@ -1,0 +1,61 @@
+@baseUrl = http://localhost:8080
+@adminToken = pega-el-jwt-del-administrador-aqui
+@studentToken = pega-el-jwt-de-un-estudiante-aqui
+
+### Lecturas públicas: no requieren Authorization.
+### Listar productos: esperado 200
+GET {{baseUrl}}/api/productos
+
+### Filtrar productos: esperado 200
+GET {{baseUrl}}/api/productos?categoria=SANDWICH&disponible=true
+
+### Leer producto existente por ID: esperado 200 (cambia el ID si hace falta)
+GET {{baseUrl}}/api/productos/1
+
+### Crear producto de prueba como CAFETERIA: esperado 201
+# @name crearProductoPrueba
+POST {{baseUrl}}/api/productos
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "nombre": "Producto HTTP {{$guid}}",
+  "descripcion": "Producto creado para probar el CRUD",
+  "precio": 5.5,
+  "categoria": "SANDWICH",
+  "disponible": true
+}
+
+### Leer el producto creado: esperado 200
+GET {{baseUrl}}/api/productos/{{crearProductoPrueba.response.body.$.id}}
+
+### Actualizar el producto creado como CAFETERIA: esperado 200
+PUT {{baseUrl}}/api/productos/{{crearProductoPrueba.response.body.$.id}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "nombre": "Producto HTTP actualizado",
+  "descripcion": "Producto actualizado para la prueba",
+  "precio": 6.0,
+  "categoria": "SANDWICH",
+  "disponible": true
+}
+
+### Estudiante no puede crear productos: esperado 403
+POST {{baseUrl}}/api/productos
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "nombre": "No debe crearse",
+  "descripcion": "Prueba de denegación",
+  "precio": 1.0,
+  "categoria": "PRUEBA",
+  "disponible": true
+}
+
+### Eliminar solo el producto creado arriba (CAFETERIA; esperado 204).
+### Si se usó en un pedido, elimina primero ese pedido.
+DELETE {{baseUrl}}/api/productos/{{crearProductoPrueba.response.body.$.id}}
+Authorization: Bearer {{adminToken}}

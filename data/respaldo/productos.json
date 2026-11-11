@@ -1,0 +1,90 @@
+[
+  {
+    "id": 1,
+    "nombre": "Pan con pollo",
+    "descripcion": "Clásico sandwich con pollo deshilachado y cremas",
+    "precio": 4.0,
+    "categoria": "SANDWICH",
+    "disponible": true
+  },
+  {
+    "id": 2,
+    "nombre": "Pan con pollo al horno",
+    "descripcion": "Sandwich con trozos de pollo al horno jugoso",
+    "precio": 4.0,
+    "categoria": "SANDWICH",
+    "disponible": true
+  },
+  {
+    "id": 3,
+    "nombre": "Hamburguesa",
+    "descripcion": "Hamburguesa clásica de carne con papas al hilo y cremas",
+    "precio": 7.0,
+    "categoria": "SANDWICH",
+    "disponible": true
+  },
+  {
+    "id": 4,
+    "nombre": "Chicharrón",
+    "descripcion": "Sandwich de chicharrón con camote y salsa criolla",
+    "precio": 8.0,
+    "categoria": "SANDWICH",
+    "disponible": true
+  },
+  {
+    "id": 5,
+    "nombre": "Papa rellena",
+    "descripcion": "Papa rellena tradicional de carne con sarsa criolla",
+    "precio": 3.5,
+    "categoria": "ANTOJITOS",
+    "disponible": true
+  },
+  {
+    "id": 6,
+    "nombre": "Empanada de pollo",
+    "descripcion": "Empanada horneada rellena de pollo",
+    "precio": 4.0,
+    "categoria": "ANTOJITOS",
+    "disponible": true
+  },
+  {
+    "id": 7,
+    "nombre": "Alitas broaster",
+    "descripcion": "Porción de alitas crocantes acompañadas de papas",
+    "precio": 8.0,
+    "categoria": "ANTOJITOS",
+    "disponible": true
+  },
+  {
+    "id": 8,
+    "nombre": "Café pasado",
+    "descripcion": "Café pasado caliente tradicional",
+    "precio": 3.0,
+    "categoria": "BEBIDAS",
+    "disponible": true
+  },
+  {
+    "id": 9,
+    "nombre": "Refresco",
+    "descripcion": "Vaso de refresco natural helado",
+    "precio": 1.5,
+    "categoria": "BEBIDAS",
+    "disponible": true
+  },
+  {
+    "id": 10,
+    "nombre": "Alfajor",
+    "descripcion": "Alfajor relleno con abundante manjar blanco",
+    "precio": 2.0,
+    "categoria": "ENDULZATE",
+    "disponible": true
+  },
+  {
+    "id": 11,
+    "nombre": "Mazamorra",
+    "descripcion": "Porción de mazamorra morada tradicional",
+    "precio": 3.0,
+    "categoria": "ENDULZATE",
+    "disponible": true
+  }
+]
