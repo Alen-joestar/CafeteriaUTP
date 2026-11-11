@@ -1,0 +1,51 @@
+:root {
+  --utp-red: #D10A22;
+  --utp-red-hover: #A8071A;
+  --utp-red-soft: #FFE8EC;
+  --bg-warm: #EFECE6;
+  --bg-sand: #E4DFD5;
+  --surface: #FFFDF9;
+  --ink: #141413;
+  --ink-soft: #262523;
+  --muted: #68645C;
+  --line: #D5CFC2;
+  --green: #0D9488;
+  --green-soft: #CCFBF1;
+  --amber: #D97706;
+  --amber-soft: #FEF3C7;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background-color: var(--bg-warm);
+  background-image: radial-gradient(rgba(20, 20, 19, 0.045) 1px, transparent 1px);
+  background-size: 18px 18px;
+  color: var(--ink);
+  min-height: 100vh;
+  width: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-syne {
+  font-family: 'Syne', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-mono {
+  font-family: 'Space Mono', monospace;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}

@@ -1,0 +1,1146 @@
+.app-layout {
+  display: grid;
+  grid-template-columns: 255px minmax(0, 1fr) 375px;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.icon-sm {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.icon-md {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ==================== TOAST ==================== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  background: var(--ink);
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: 2px solid var(--utp-red);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: popIn 0.2s ease;
+}
+
+.toast.toast-error {
+  border-color: #f87171;
+  background: #450a0a;
+}
+
+@keyframes popIn {
+  from {
+    transform: translate(-50%, 15px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+/* ==================== COLUMNA 1: SIDEBAR & LOGO UTP OFICIAL ==================== */
+.sidebar {
+  background: var(--ink);
+  color: #fff;
+  padding: 24px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 4px solid var(--utp-red);
+}
+
+.brand-box {
+  padding-bottom: 20px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+/* Logo Oficial UTP: 3 bloques [U][T][P] + Texto institucional */
+.utp-official-logo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.utp-blocks-wrap {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 44px);
+  height: 44px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  width: fit-content;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.utp-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.utp-block.red {
+  background: #D10A22;
+}
+
+.utp-block.black {
+  background: #000000;
+}
+
+.utp-block svg {
+  width: 24px;
+  height: 24px;
+  fill: #FFFFFF;
+}
+
+.utp-brand-meta h1 {
+  font-size: 1.12rem;
+  color: #FFFDF9;
+  margin-top: 2px;
+}
+
+.utp-brand-meta span {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.67rem;
+  color: #9E998E;
+  margin-top: 4px;
+}
+
+.nav-list {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nav-ticket-btn {
+  position: relative;
+  width: 100%;
+  text-align: left;
+  padding: 13px 15px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #B8B3A8;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 0 24px 24px 0;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-ticket-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: translateX(4px);
+}
+
+.nav-ticket-btn.active {
+  background: var(--utp-red);
+  color: #fff;
+  border-style: solid;
+  border-color: var(--utp-red);
+  box-shadow: 0 8px 18px rgba(209, 10, 34, 0.35);
+}
+
+.nav-count {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+/* Tarjeta de Usuario estilo Pase Perforado compacta y de alto invariable */
+.user-pass {
+  background: #22211F;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 20px 20px 0 0;
+  padding: 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow: hidden;
+}
+
+.user-pass-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.avatar-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #FDE047;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.user-meta-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.user-pass strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-pass-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.user-pass small {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  color: #A6A29A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-chip-fixed {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: rgba(209, 10, 34, 0.25);
+  border: 1px solid var(--utp-red);
+  color: #FFFDF9;
+  white-space: nowrap;
+  text-align: center;
+  min-width: 82px;
+}
+
+.pass-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.pass-actions.single-col {
+  grid-template-columns: 1fr;
+}
+
+.btn-mini {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #E5E0D5;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  height: 30px;
+  border-radius: 99px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  transition: 0.15s;
+}
+
+.btn-mini:hover {
+  background: var(--utp-red);
+  border-color: var(--utp-red);
+  color: #fff;
+}
+
+/* ==================== COLUMNA 2: CENTRO ==================== */
+.center-stage {
+  padding: 26px 32px 60px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Monitor de Turnos en Barra (Cápsula superior) */
+.barra-monitor {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+  box-shadow: 0 8px 20px rgba(20, 20, 19, 0.05);
+}
+
+.barra-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 4px var(--green-soft);
+}
+
+.ready-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ready-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green);
+  color: #fff;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  font-size: 0.74rem;
+  padding: 4px 12px;
+  border-radius: 99px;
+}
+
+/* Banner en Arco Asimétrico */
+.arch-hero {
+  background: var(--ink);
+  color: #FFFDF9;
+  border-radius: 0 110px 0 48px;
+  border-left: 8px solid var(--utp-red);
+  padding: 26px 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.arch-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--utp-red);
+  color: #fff;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 99px;
+  margin-bottom: 10px;
+}
+
+.arch-hero h2 {
+  font-size: 1.68rem;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.arch-hero p {
+  color: #C7C1B4;
+  font-size: 0.88rem;
+  max-width: 520px;
+}
+
+.hero-circle-stat {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  border: 2px dashed #FDE047;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.hero-circle-stat strong {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.25rem;
+  color: #FDE047;
+}
+
+.hero-circle-stat span {
+  font-size: 0.66rem;
+  color: #D5CFC2;
+}
+
+/* ==================== BARRA DE FILTROS EQUILIBRADA (Todos + Select + Buscador) ==================== */
+.filter-toolbar {
+  display: grid;
+  grid-template-columns: auto 230px 1fr;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 26px 26px 0 26px;
+  padding: 10px 14px;
+  margin-bottom: 46px;
+  box-shadow: 0 8px 20px rgba(20, 20, 19, 0.04);
+}
+
+.btn-all-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 18px 18px 0 18px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: 0.15s;
+  white-space: nowrap;
+}
+
+.btn-all-reset.active {
+  background: var(--utp-red);
+  border-color: var(--utp-red);
+}
+
+.select-category-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--bg-warm);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 0 14px;
+  height: 41px;
+}
+
+.select-category-wrap select {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+  padding-left: 8px;
+  padding-right: 18px;
+}
+
+.select-chevron {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+  color: var(--ink);
+}
+
+.search-box-balanced {
+  display: flex;
+  align-items: center;
+  background: var(--bg-warm);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 0 16px;
+  height: 41px;
+}
+
+.search-box-balanced input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 0.88rem;
+  color: var(--ink);
+  margin-left: 10px;
+}
+
+/* Grilla de Platos Circulares Flotantes sobre Cúpula/Arco (3 columnas fijas estables) */
+.dome-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 54px 22px;
+  padding-top: 18px;
+  width: 100%;
+}
+
+.dome-card {
+  background: var(--surface);
+  border-radius: 140px 140px 0 0;
+  padding: 0 18px 20px;
+  text-align: center;
+  position: relative;
+  border: 1.5px solid #DED8CA;
+  border-bottom: 4px dashed var(--bg-warm);
+  box-shadow: 0 14px 28px rgba(20, 20, 19, 0.06);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.dome-card:hover {
+  transform: translateY(-7px);
+  border-color: var(--ink);
+  box-shadow: 0 20px 36px rgba(20, 20, 19, 0.12);
+}
+
+.dome-card:hover .floating-plate {
+  transform: scale(1.05) rotate(3deg);
+}
+
+.dome-card.agotado {
+  opacity: 0.6;
+  filter: grayscale(0.4);
+}
+
+.floating-plate {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  margin: -40px auto 12px;
+  overflow: hidden;
+  border: 5px solid var(--surface);
+  box-shadow: 0 12px 24px rgba(20, 20, 19, 0.18);
+  position: relative;
+  transition: transform 0.25s ease;
+  background: var(--bg-sand);
+}
+
+.floating-plate img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stock-orb {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: var(--ink);
+  color: #FDE047;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 99px;
+  z-index: 2;
+}
+
+.stock-orb.out {
+  background: var(--utp-red);
+  color: #fff;
+}
+
+.cat-mini-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--utp-red);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.dome-card h3 {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.dome-card p {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+  flex: 1;
+  margin-bottom: 14px;
+}
+
+.dome-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.price-mono {
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--ink);
+}
+
+.btn-add-dome {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ink);
+  color: #fff;
+  border: none;
+  padding: 9px 15px;
+  border-radius: 999px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-add-dome:hover:not(:disabled) {
+  background: var(--utp-red);
+}
+
+.btn-add-dome:disabled {
+  background: #B8B3A8;
+  cursor: not-allowed;
+}
+
+/* ==================== VISTA 2: BOLETOS DE PEDIDO + STEPPER ==================== */
+.ticket-order-card {
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 26px 26px 0 0;
+  padding: 20px 24px;
+  position: relative;
+  border-bottom: 4px dashed var(--bg-warm);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+}
+
+.ticket-order-card::before,
+.ticket-order-card::after {
+  content: '';
+  position: absolute;
+  top: 52%;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-warm);
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+}
+
+.ticket-order-card::before {
+  left: -11px;
+}
+
+.ticket-order-card::after {
+  right: -11px;
+}
+
+.stepper-track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 16px 0;
+  padding: 14px 0;
+  border-top: 1px dashed var(--line);
+  border-bottom: 1px dashed var(--line);
+}
+
+.step-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 999px;
+  background: #F2EFE9;
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.step-node.done {
+  background: var(--green-soft);
+  color: #0F766E;
+  border: 1px solid #5EEAD4;
+}
+
+.step-node.active {
+  background: var(--utp-red);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(209, 10, 34, 0.3);
+}
+
+/* ==================== VISTA 3: PANEL ADMIN CAFETERÍA ==================== */
+.admin-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.kpi-arch {
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 34px 34px 0 0;
+  padding: 18px 14px;
+  text-align: center;
+  border-bottom: 4px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.kpi-arch.highlight {
+  background: var(--ink);
+  color: #fff;
+  border-bottom-color: var(--utp-red);
+}
+
+.kpi-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.kpi-arch strong {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 1.5rem;
+  margin-top: 2px;
+}
+
+.kpi-date-input {
+  margin-top: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  color: #FDE047;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Grilla de Comandas Activas en 2 columnas balanceadas */
+.comandas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.comanda-card {
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 24px 24px 0 0;
+  padding: 18px 20px;
+  border-bottom: 4px dashed var(--bg-warm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.comanda-pay-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px dashed var(--line);
+}
+
+.comanda-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.comanda-actions-grid .action-pill {
+  justify-content: center;
+  width: 100%;
+}
+
+.admin-subtabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tab-arc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1.5px solid var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 16px;
+  border-radius: 20px 20px 0 20px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.tab-arc-btn.active {
+  background: var(--utp-red);
+  border-color: var(--utp-red);
+  color: #fff;
+}
+
+.action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.71rem;
+  font-weight: 700;
+  padding: 6px 11px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: 0.15s;
+  white-space: nowrap;
+}
+
+.action-pill:hover,
+.action-pill.active-filter {
+  background: var(--ink);
+  color: #fff;
+}
+
+.action-pill.green {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+.action-pill.amber {
+  background: var(--amber);
+  color: #fff;
+  border-color: var(--amber);
+}
+
+.action-pill.red {
+  background: var(--utp-red);
+  color: #fff;
+  border-color: var(--utp-red);
+}
+
+/* ==================== COLUMNA 3: TICKET PERFORADO REAL ==================== */
+.ticket-dock {
+  background: var(--bg-sand);
+  border-left: 1.5px solid var(--line);
+  padding: 22px 18px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.paper-receipt {
+  background: var(--surface);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 20px;
+  position: relative;
+  box-shadow: 0 14px 34px rgba(20, 20, 19, 0.1);
+  background-image:
+    radial-gradient(circle at 10px 0, var(--bg-sand) 6px, transparent 7px),
+    radial-gradient(circle at 10px 100%, var(--bg-sand) 6px, transparent 7px);
+  background-size: 20px 100%;
+  overflow: hidden;
+}
+
+.receipt-head {
+  text-align: center;
+  border-bottom: 2px dashed var(--ink);
+  padding-bottom: 12px;
+}
+
+.receipt-head h3 {
+  font-size: 1.12rem;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.receipt-head small {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.receipt-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.receipt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px dotted var(--line);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.76rem;
+}
+
+.qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qty-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qty-btn:hover {
+  background: var(--ink);
+  color: #fff;
+}
+
+.receipt-pay-box {
+  border-top: 2px dashed var(--ink);
+  padding-top: 12px;
+}
+
+.pay-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.pay-option {
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  padding: 7px 4px;
+  border-radius: 99px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pay-option.active {
+  background: var(--ink);
+  color: #FDE047;
+}
+
+.receipt-input {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  background: #F7F4EC;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.74rem;
+  margin-bottom: 6px;
+  outline: none;
+}
+
+.receipt-input:focus {
+  border-color: var(--ink);
+}
+
+.btn-emitir {
+  width: 100%;
+  background: var(--utp-red);
+  color: #fff;
+  border: none;
+  padding: 13px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-emitir:hover:not(:disabled) {
+  background: var(--utp-red-hover);
+}
+
+.btn-emitir:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.barcode {
+  height: 20px;
+  margin-top: 10px;
+  background: repeating-linear-gradient(
+    90deg,
+    #141413,
+    #141413 2px,
+    transparent 2px,
+    transparent 5px,
+    #141413 5px,
+    #141413 6px,
+    transparent 6px,
+    transparent 9px
+  );
+  opacity: 0.65;
+}
+
+/* ==================== MODALES EN CÚPULA ==================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 19, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-dome {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 48px 48px 0 0;
+  width: 100%;
+  max-width: 480px;
+  padding: 28px 26px;
+  border-bottom: 5px dashed var(--utp-red);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.auth-mode-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.field-group {
+  margin-bottom: 12px;
+}
+
+.field-group label {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.field-group input,
+.field-group select,
+.field-group textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--ink);
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.demo-access-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--bg-warm);
+  border: 1px dashed var(--ink);
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+}
+
+.empty-ticket-box {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border: 1.5px dashed var(--ink);
+  border-radius: 26px 26px 0 0;
+  padding: 36px 24px;
+  text-align: center;
+}

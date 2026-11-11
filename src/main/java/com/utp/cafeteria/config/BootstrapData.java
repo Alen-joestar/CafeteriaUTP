@@ -39,17 +39,22 @@ public class BootstrapData implements CommandLineRunner {
     }
 
     private void inicializarAdmin() {
-        if (usuarios.count() > 0) {
-            return;
-        }
         if (adminPassword == null || adminPassword.length() < 8) {
             throw new IllegalStateException(
                     "Configura CAFETERIA_ADMIN_PASSWORD con al menos 8 caracteres para crear el administrador inicial");
         }
 
-        Usuario admin = new Usuario(null, "ADMIN", "admin@cafeteria.local", "Administrador de Cafetería",
-                passwordEncoder.encode(adminPassword), "CAFETERIA");
-        usuarios.save(admin);
+        if (usuarios.findByCodigo("ADMIN").isEmpty()) {
+            Usuario admin = new Usuario(null, "ADMIN", "admin@cafeteria.local", "Administrador de Cafetería",
+                    passwordEncoder.encode(adminPassword), "CAFETERIA");
+            usuarios.save(admin);
+        }
+
+        if (usuarios.findByCodigo("U2303001").isEmpty()) {
+            Usuario estudiante = new Usuario(null, "U2303001", "u2303001@utp.edu.pe", "Carlos Pérez",
+                    passwordEncoder.encode(adminPassword), "ESTUDIANTE");
+            usuarios.save(estudiante);
+        }
     }
 
     private void inicializarProductos() {
