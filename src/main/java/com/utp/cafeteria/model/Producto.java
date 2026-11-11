@@ -23,17 +23,28 @@ public class Producto {
     private String categoria;
     @Column(nullable = false)
     private Boolean disponible;
+    @Column(length = 500)
+    private String imagenUrl;
+    @Column
+    private Integer stock;
 
     public Producto() {
     }
 
     public Producto(Long id, String nombre, String descripcion, Double precio, String categoria, Boolean disponible) {
+        this(id, nombre, descripcion, precio, categoria, disponible, null, null);
+    }
+
+    public Producto(Long id, String nombre, String descripcion, Double precio, String categoria, Boolean disponible,
+            String imagenUrl, Integer stock) {
         this.id = id;
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.precio = precio;
         this.categoria = categoria;
         this.disponible = disponible;
+        this.imagenUrl = imagenUrl;
+        this.stock = stock;
     }
 
     public Long getId() {
@@ -82,5 +93,21 @@ public class Producto {
 
     public void setDisponible(Boolean disponible) {
         this.disponible = disponible;
+    }
+
+    public String getImagenUrl() {
+        return imagenUrl;
+    }
+
+    public void setImagenUrl(String imagenUrl) {
+        this.imagenUrl = imagenUrl;
+    }
+
+    public Integer getStock() {
+        return stock;
+    }
+
+    public void setStock(Integer stock) {
+        this.stock = stock;
     }
 }
