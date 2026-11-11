@@ -72,12 +72,54 @@ class CafeteriaApplicationTests {
     void autenticacionRechazaCredencialesYTokensInvalidos() throws Exception {
         MvcResult loginFallido = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"identificador\":\"ADMIN\",\"password\":\"incorrecta\"}"))
-                .andExpect(status().is4xxClientError())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Credenciales inválidas"))
                 .andReturn();
         assertFalse(loginFallido.getResponse().getContentAsString().contains("\"token\""));
 
         assertDenied(mockMvc.perform(get("/api/usuarios")
                 .header("Authorization", "Bearer token-invalido")).andReturn());
+    }
+
+    @Test
+    void registroPublicoEstudianteLoginEnriquecidoYManjeoErrores400() throws Exception {
+        String codigo = "U-REG-" + System.nanoTime();
+        String correo = codigo.toLowerCase() + "@utp.edu.pe";
+        String bodyRegistro = """
+                {"codigo":"%s","correo":"%s","nombreCompleto":"Nuevo Estudiante UTP","password":"Password123!"}
+                """.formatted(codigo, correo);
+
+        mockMvc.perform(post("/api/auth/registro")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyRegistro))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.codigo").value(codigo))
+                .andExpect(jsonPath("$.rol").value("ESTUDIANTE"))
+                .andExpect(jsonPath("$.password").doesNotExist());
+
+        MvcResult loginOk = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identificador\":\"" + codigo + "\",\"password\":\"Password123!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.tipo").value("Bearer"))
+                .andExpect(jsonPath("$.codigo").value(codigo))
+                .andExpect(jsonPath("$.correo").value(correo))
+                .andExpect(jsonPath("$.nombreCompleto").value("Nuevo Estudiante UTP"))
+                .andExpect(jsonPath("$.rol").value("ESTUDIANTE"))
+                .andReturn();
+
+        String token = JsonPath.read(loginOk.getResponse().getContentAsString(), "$.token");
+        mockMvc.perform(conToken(get("/api/auth/me"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value(codigo))
+                .andExpect(jsonPath("$.password").doesNotExist());
+
+        mockMvc.perform(post("/api/auth/registro")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"codigo\":\"\",\"correo\":\"\",\"nombreCompleto\":\"\",\"password\":\"123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
     }
 
     @Test
