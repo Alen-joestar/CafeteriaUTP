@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.utp.cafeteria.model.ActualizarEstadoPedidoDTO;
 import com.utp.cafeteria.model.ItemPedidoDTO;
 import com.utp.cafeteria.model.Pedido;
 import com.utp.cafeteria.model.Producto;
@@ -107,6 +108,26 @@ class PedidoServiceTest {
 
         assertEquals(result, result.getItems().get(0).getPedido());
         assertEquals(producto1, result.getItems().get(0).getProducto());
+    }
+
+    @Test void descuentaStockYReponeAlCancelarPedido() {
+        producto1.setStock(2);
+        when(usuarios.findById(3L)).thenReturn(Optional.of(usuario));
+        when(productos.findById(1L)).thenReturn(Optional.of(producto1));
+        when(pasarela.procesar("YAPE", null, 8.0)).thenReturn("PENDIENTE");
+        when(pedidos.save(any(Pedido.class))).thenAnswer(call -> call.getArgument(0));
+
+        Pedido creado = service.crearPedido(solicitud(1L, 2, "YAPE"));
+        creado.setId(10L);
+        assertEquals(0, producto1.getStock());
+        assertFalse(producto1.getDisponible());
+
+        when(pedidos.buscarPorIdCompleto(10L)).thenReturn(Optional.of(creado));
+        Pedido cancelado = service.actualizarEstado(10L, new ActualizarEstadoPedidoDTO("CANCELADO", null), false, 3L);
+
+        assertEquals("CANCELADO", cancelado.getEstado());
+        assertEquals(2, producto1.getStock());
+        assertTrue(producto1.getDisponible());
     }
 
     private SolicitudPedidoDTO solicitud(Long productoId, Integer cantidad, String metodo) {

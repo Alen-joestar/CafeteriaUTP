@@ -64,6 +64,8 @@ class CafeteriaApplicationTests {
     void rutasPublicasYDenegacionPorDefecto() throws Exception {
         mockMvc.perform(get("/")).andExpect(status().isOk());
         mockMvc.perform(get("/api/productos")).andExpect(status().isOk());
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("Cafetería UTP API"));
         assertDenied(mockMvc.perform(get("/api/usuarios")).andReturn());
         assertDenied(mockMvc.perform(get("/api/pedidos")).andReturn());
         mockMvc.perform(get("/ruta-no-expuesta")).andExpect(status().isForbidden());
