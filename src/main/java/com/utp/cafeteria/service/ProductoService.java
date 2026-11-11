@@ -29,7 +29,10 @@ public class ProductoService {
         validar(producto);
         producto.setId(null);
         if (producto.getDisponible() == null) {
-            producto.setDisponible(true);
+            producto.setDisponible(producto.getStock() == null || producto.getStock() > 0);
+        }
+        if (producto.getStock() != null && producto.getStock() == 0) {
+            producto.setDisponible(false);
         }
         return repository.save(producto);
     }
@@ -44,7 +47,18 @@ public class ProductoService {
         existente.setDescripcion(datos.getDescripcion());
         existente.setPrecio(datos.getPrecio());
         existente.setCategoria(datos.getCategoria());
-        if (datos.getDisponible() != null) existente.setDisponible(datos.getDisponible());
+        if (datos.getImagenUrl() != null) {
+            existente.setImagenUrl(datos.getImagenUrl());
+        }
+        if (datos.getStock() != null) {
+            existente.setStock(datos.getStock());
+        }
+        if (datos.getDisponible() != null) {
+            existente.setDisponible(datos.getDisponible());
+        }
+        if (existente.getStock() != null && existente.getStock() == 0) {
+            existente.setDisponible(false);
+        }
         return repository.save(existente);
     }
 
@@ -58,5 +72,6 @@ public class ProductoService {
         if (producto.getNombre() == null || producto.getNombre().isBlank()) throw new IllegalArgumentException("El nombre es obligatorio");
         if (producto.getCategoria() == null || producto.getCategoria().isBlank()) throw new IllegalArgumentException("La categoría es obligatoria");
         if (producto.getPrecio() == null || producto.getPrecio() <= 0) throw new IllegalArgumentException("El precio debe ser mayor a cero");
+        if (producto.getStock() != null && producto.getStock() < 0) throw new IllegalArgumentException("El stock no puede ser negativo");
     }
 }

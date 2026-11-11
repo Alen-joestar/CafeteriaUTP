@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -256,6 +257,37 @@ class CafeteriaApplicationTests {
 
         mockMvc.perform(comoAdmin(delete("/api/pedidos/{id}", id)))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void descuentoDeStockCambioDeEstadoAgilYReporteRecaudacion() throws Exception {
+        Producto conStock = productos.saveAndFlush(new Producto(null, "Empanada especial", "Horneada",
+                5.0, "ANTOJITOS", true, "https://example.com/empanada.jpg", 3));
+
+        MvcResult creado = mockMvc.perform(comoAdmin(post("/api/pedidos")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(pedido(admin.getId(), conStock.getId(), 3))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nombreCliente").value(admin.getNombreCompleto()))
+                .andExpect(jsonPath("$.codigoCliente").value(admin.getCodigo()))
+                .andReturn();
+        long pedidoId = idDe(creado);
+
+        Producto agotado = productos.findById(conStock.getId()).orElseThrow();
+        assertEquals(0, agotado.getStock());
+        assertFalse(agotado.getDisponible());
+
+        mockMvc.perform(comoAdmin(patch("/api/pedidos/{id}/estado", pedidoId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"estado\":\"ENTREGADO\",\"estadoPago\":\"PAGADO\"}")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ENTREGADO"))
+                .andExpect(jsonPath("$.estadoPago").value("PAGADO"));
+
+        mockMvc.perform(comoAdmin(get("/api/pedidos/recaudacion")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fecha").value(LocalDate.now().toString()))
+                .andExpect(jsonPath("$.totalRecaudado").value(15.0));
     }
 
     @Test

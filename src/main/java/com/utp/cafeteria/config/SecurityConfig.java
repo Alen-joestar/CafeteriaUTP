@@ -85,11 +85,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/productos", "/api/productos/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasRole("CAFETERIA")
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/recaudacion").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.PUT, "/api/pedidos/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.DELETE, "/api/pedidos/**").hasRole("CAFETERIA")
 
                         .requestMatchers(HttpMethod.GET, "/api/pedidos", "/api/pedidos/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/pedidos", "/api/pedidos/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/pedidos/**").authenticated()
 
                         .anyRequest().denyAll())
 

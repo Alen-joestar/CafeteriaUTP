@@ -42,6 +42,8 @@ public class Pedido {
     private String metodoPago;
     @Column(nullable = false, length = 30)
     private String estadoPago;
+    @Column(length = 120)
+    private String referenciaPago;
 
     public Pedido() {
     }
@@ -90,6 +92,16 @@ public class Pedido {
 
     public void setClienteId(Long clienteId) {
         this.cliente = clienteId == null ? null : new Usuario(clienteId, null, null, null, null, null);
+    }
+
+    @JsonProperty(value = "nombreCliente", access = JsonProperty.Access.READ_ONLY)
+    public String getNombreCliente() {
+        return cliente == null ? null : cliente.getNombreCompleto();
+    }
+
+    @JsonProperty(value = "codigoCliente", access = JsonProperty.Access.READ_ONLY)
+    public String getCodigoCliente() {
+        return cliente == null ? null : cliente.getCodigo();
     }
 
     public String getMensaje() {
@@ -154,4 +166,11 @@ public class Pedido {
         this.estadoPago = estadoPago;
     }
 
+    public String getReferenciaPago() {
+        return referenciaPago;
+    }
+
+    public void setReferenciaPago(String referenciaPago) {
+        this.referenciaPago = referenciaPago;
+    }
 }
