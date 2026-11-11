@@ -1,690 +1,1093 @@
-<div class="app-shell">
+<div class="app-layout">
   <!-- Notificación Toast -->
   @if (notificacion(); as notif) {
     <div class="toast" [class.toast-error]="notif.tipo === 'error'">
-      <span>{{ notif.tipo === 'exito' ? '✓' : '⚠' }}</span>
-      <p>{{ notif.texto }}</p>
+      @if (notif.tipo === 'exito') {
+        <svg class="icon-sm" viewBox="0 0 24 24">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <path d="m9 11 3 3L22 4" />
+        </svg>
+      } @else {
+        <svg class="icon-sm" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      }
+      <span>{{ notif.texto }}</span>
     </div>
   }
 
-  <!-- Barra de Navegación Superior -->
-  <header class="navbar">
-    <div class="navbar-inner">
-      <div class="brand" (click)="cambiarVista('CATALOGO')">
-        <div class="brand-logo">☕</div>
-        <div>
-          <h1>Cafetería UTP</h1>
-          <span>Campus Mia Piura · Pedidos en línea</span>
+  <!-- ==================== COLUMNA 1: SIDEBAR CON LOGO OFICIAL UTP ==================== -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand-box" (click)="cambiarVista('CATALOGO')">
+        <div class="utp-official-logo">
+          <!-- Bloques oficiales UTP: [U] rojo, [T] negro, [P] rojo -->
+          <div class="utp-blocks-wrap" aria-label="Logo UTP">
+            <div class="utp-block red">
+              <svg viewBox="0 0 36 36">
+                <path d="M6 6h7v17h10V6h7v18l-6 6H12l-6-6V6z" />
+              </svg>
+            </div>
+            <div class="utp-block black">
+              <svg viewBox="0 0 36 36">
+                <path d="M5 6h26v7H21.5v17h-7V13H5V6z" />
+              </svg>
+            </div>
+            <div class="utp-block red">
+              <svg viewBox="0 0 36 36">
+                <path d="M6 6h19l5 5v9l-5 5H13v5H6V6zm7 6v6h9v-6h-9z" />
+              </svg>
+            </div>
+          </div>
+
+          <div class="utp-brand-meta">
+            <h1>Cafetería UTP</h1>
+            <span>SEDE PIURA · TICKET DIGITAL</span>
+          </div>
         </div>
       </div>
 
-      <nav class="nav-links">
+      <nav class="nav-list">
         <button
           type="button"
-          class="nav-btn"
+          class="nav-ticket-btn"
           [class.active]="vistaActiva() === 'CATALOGO'"
           (click)="cambiarVista('CATALOGO')"
         >
-          🍔 Carta del Día
+          <span class="nav-btn-left">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+              <path d="M7 2v20" />
+              <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+            </svg>
+            <span>01 / CARTA DEL DÍA</span>
+          </span>
+          <span class="nav-count">{{ productos().length }}</span>
         </button>
 
-        @if (estaAutenticado()) {
-          <button
-            type="button"
-            class="nav-btn"
-            [class.active]="vistaActiva() === 'MIS_PEDIDOS'"
-            (click)="cambiarVista('MIS_PEDIDOS')"
-          >
-            🧾 {{ esCafeteria() ? 'Historial Pedidos' : 'Mis Pedidos' }}
-          </button>
-        }
+        <button
+          type="button"
+          class="nav-ticket-btn"
+          [class.active]="vistaActiva() === 'MIS_PEDIDOS'"
+          (click)="cambiarVista('MIS_PEDIDOS')"
+        >
+          <span class="nav-btn-left">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+              <path d="M13 5v2" />
+              <path d="M13 17v2" />
+              <path d="M13 11v2" />
+            </svg>
+            <span>02 / MIS PEDIDOS</span>
+          </span>
+          <span class="nav-count">{{ pedidos().length }}</span>
+        </button>
 
         @if (esCafeteria()) {
           <button
             type="button"
-            class="nav-btn nav-btn-admin"
+            class="nav-ticket-btn"
             [class.active]="vistaActiva() === 'ADMIN'"
             (click)="cambiarVista('ADMIN')"
           >
-            ⚙️ Panel Cafetería
+            <span class="nav-btn-left">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <rect width="7" height="9" x="3" y="3" rx="1" />
+                <rect width="7" height="5" x="14" y="3" rx="1" />
+                <rect width="7" height="9" x="14" y="12" rx="1" />
+                <rect width="7" height="5" x="3" y="16" rx="1" />
+              </svg>
+              <span>03 / CAJA & COCINA</span>
+            </span>
+            <span class="nav-count">ADMIN</span>
           </button>
         }
       </nav>
+    </div>
 
-      <div class="nav-actions">
-        <button
-          type="button"
-          class="cart-trigger"
-          (click)="mostrarCarrito.set(true)"
-        >
-          <span>🛒</span>
-          <span class="cart-count">{{ totalItemsCarrito() }}</span>
-          <span class="cart-amount">S/ {{ totalMontoCarrito() | number: '1.2-2' }}</span>
-        </button>
-
-        @if (estaAutenticado(); as ok) {
-          <div class="user-pill">
-            <div class="user-meta">
-              <strong>{{ sesion()?.nombreCompleto || sesion()?.codigo }}</strong>
-              <span class="role-badge" [class.role-admin]="esCafeteria()">
-                {{ sesion()?.rol }}
-              </span>
-            </div>
-            <button type="button" class="btn-logout" (click)="cerrarSesion()">Salir</button>
+    <!-- Tarjeta de Usuario compacta y de alto invariable -->
+    <div class="user-pass">
+      <div class="user-pass-head">
+        <div class="avatar-circle">{{ inicialesUsuario() }}</div>
+        <div class="user-meta-info">
+          <strong>{{ sesion()?.nombreCompleto || sesion()?.codigo || 'Invitado UTP' }}</strong>
+          <div class="user-pass-sub">
+            <small>{{ sesion()?.codigo || 'SIN SESIÓN' }}</small>
+            <span class="role-chip-fixed">{{ sesion()?.rol || 'VISITANTE' }}</span>
           </div>
-        } @else {
-          <button type="button" class="btn-primary" (click)="abrirModalLogin()">
-            Iniciar Sesión
+        </div>
+      </div>
+
+      @if (estaAutenticado()) {
+        <div class="pass-actions">
+          <button type="button" class="btn-mini" (click)="abrirModalLogin()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="m17 2 4 4-4 4" />
+              <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+              <path d="m7 22-4-4 4-4" />
+              <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+            </svg>
+            <span>Cuenta</span>
           </button>
+          <button type="button" class="btn-mini" (click)="cerrarSesion()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Salir</span>
+          </button>
+        </div>
+      } @else {
+        <div class="pass-actions single-col">
+          <button type="button" class="btn-mini" (click)="abrirModalLogin()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" />
+              <circle cx="16.5" cy="7.5" r=".5" />
+            </svg>
+            <span>Ingresar / Registrarse</span>
+          </button>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <!-- ==================== COLUMNA 2: ESCENARIO CENTRAL ==================== -->
+  <main class="center-stage">
+    <!-- Monitor de Pedidos Listos en Barra (En Vivo) -->
+    <div class="barra-monitor">
+      <div class="barra-label">
+        <span class="pulse-dot"></span>
+        <svg class="icon-sm" viewBox="0 0 24 24">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          <path d="M4 2C2.8 3.7 2 5.7 2 8" />
+          <path d="M22 8c0-2.3-.8-4.3-2-6" />
+        </svg>
+        <span>LISTOS EN BARRA PARA RECOGER:</span>
+      </div>
+      <div class="ready-pills">
+        @for (listo of pedidosListosEnBarra(); track listo.id) {
+          <span class="ready-code">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <path d="m9 11 3 3L22 4" />
+            </svg>
+            <span>{{ listo.codigo }} ({{ listo.nombreCliente || listo.codigoCliente || 'Cliente' }})</span>
+          </span>
+        } @empty {
+          <span class="font-mono" style="font-size: 0.74rem; color: var(--muted);">
+            Ningún pedido pendiente en barra
+          </span>
         }
       </div>
     </div>
-  </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="main-container">
-    <!-- ==================== VISTA 1: CATÁLOGO ==================== -->
+    <!-- ==================== VISTA 01: CARTA DEL DÍA ==================== -->
     @if (vistaActiva() === 'CATALOGO') {
-      <section class="hero-banner">
-        <div class="hero-text">
-          <span class="hero-chip">✨ Atención sin colas · Campus UTP</span>
-          <h2>Pide desde tu celular o PC y recoge en barra</h2>
-          <p>
-            Elige tus sándwiches, antojitos, bebidas o postres favoritos y paga con Yape, Plin o
-            Tarjeta.
-          </p>
-        </div>
-        <div class="hero-stats">
-          <div class="stat-box">
-            <strong>{{ productos().length }}</strong>
-            <span>Productos en carta</span>
+      <section>
+        <div class="arch-hero">
+          <div>
+            <span class="arch-hero-tag">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              <span>ATENCIÓN UNIVERSITARIA SIN COLAS</span>
+            </span>
+            <h2>Platos recién hechos, directo a tu ticket digital.</h2>
+            <p>
+              Selecciona tus sándwiches, antojitos, bebidas o postres. Tu orden genera un boleto
+              único para recoger en barra.
+            </p>
           </div>
-          <div class="stat-box">
-            <strong>Yape / Plin</strong>
-            <span>Pagos rápidos</span>
+          <div class="hero-circle-stat">
+            <strong>~5m</strong>
+            <span>ENTREGA EN BARRA</span>
           </div>
         </div>
-      </section>
 
-      <!-- Barra de filtros y búsqueda -->
-      <section class="toolbar">
-        <div class="category-pills">
-          @for (cat of categorias; track cat) {
-            <button
-              type="button"
-              class="pill"
-              [class.active]="categoriaSeleccionada() === cat"
-              (click)="categoriaSeleccionada.set(cat)"
+        <!-- Barra de filtros equilibrada: Botón Todos + Desplegable de Categorías + Buscador -->
+        <div class="filter-toolbar">
+          <button
+            type="button"
+            class="btn-all-reset"
+            [class.active]="categoriaSeleccionada() === 'TODOS' && !busquedaProducto()"
+            (click)="resetearFiltroTodos()"
+          >
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <rect width="7" height="7" x="3" y="3" rx="1" />
+              <rect width="7" height="7" x="14" y="3" rx="1" />
+              <rect width="7" height="7" x="14" y="14" rx="1" />
+              <rect width="7" height="7" x="3" y="14" rx="1" />
+            </svg>
+            <span>Todos</span>
+          </button>
+
+          <div class="select-category-wrap">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            <select
+              [ngModel]="categoriaSeleccionada()"
+              (ngModelChange)="cambiarCategoriaSelect($event)"
             >
-              {{ cat === 'TODOS' ? '🍽️ Todos' : cat }}
-            </button>
-          }
-        </div>
-        <div class="search-box">
-          <input
-            type="text"
-            placeholder="Buscar pan con pollo, café, empanada..."
-            [ngModel]="busquedaProducto()"
-            (ngModelChange)="busquedaProducto.set($event)"
-          />
-        </div>
-      </section>
-
-      <!-- Grilla de Productos -->
-      <section class="product-grid">
-        @for (p of productosFiltrados(); track p.id) {
-          <article class="product-card" [class.product-disabled]="!p.disponible">
-            <div class="product-img-wrap">
-              <img
-                [src]="p.imagenUrl || imagenPorDefecto(p.categoria)"
-                [alt]="p.nombre"
-                loading="lazy"
-              />
-              <span class="category-tag">{{ p.categoria }}</span>
-              @if (!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)) {
-                <span class="stock-tag stock-out">Agotado</span>
-              } @else if (p.stock !== null && p.stock !== undefined) {
-                <span class="stock-tag">Stock: {{ p.stock }}</span>
-              }
-            </div>
-            <div class="product-body">
-              <div class="product-head">
-                <h3>{{ p.nombre }}</h3>
-                <span class="price">S/ {{ p.precio | number: '1.2-2' }}</span>
-              </div>
-              <p class="product-desc">{{ p.descripcion || 'Preparado al instante en cafetería.' }}</p>
-              <button
-                type="button"
-                class="btn-add"
-                [disabled]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
-                (click)="agregarAlCarrito(p)"
-              >
-                {{ p.disponible ? '+ Agregar al pedido' : 'No disponible' }}
-              </button>
-            </div>
-          </article>
-        } @empty {
-          <div class="empty-state">
-            <h3>No encontramos productos con ese filtro</h3>
-            <p>Prueba seleccionando otra categoría o limpiando el buscador.</p>
+              <option value="TODOS">Categoría: Todas</option>
+              <option value="SANDWICH">Sándwiches</option>
+              <option value="ANTOJITOS">Antojitos</option>
+              <option value="BEBIDAS">Bebidas</option>
+              <option value="ENDULZATE">Endúlzate (Postres)</option>
+            </select>
+            <svg class="icon-sm select-chevron" viewBox="0 0 24 24">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </div>
-        }
-      </section>
-    }
 
-    <!-- ==================== VISTA 2: MIS PEDIDOS ==================== -->
-    @if (vistaActiva() === 'MIS_PEDIDOS') {
-      <section class="section-header">
-        <div>
-          <h2>🧾 Seguimiento de Pedidos</h2>
-          <p>Revisa el estado de preparación y recojo de tus pedidos en tiempo real.</p>
+          <div class="search-box-balanced">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar plato o bebida (ej. chicharrón, café, alitas)..."
+              [ngModel]="busquedaProducto()"
+              (ngModelChange)="busquedaProducto.set($event)"
+            />
+          </div>
         </div>
-        <button type="button" class="btn-outline" (click)="cargarPedidos()">
-          ↻ Actualizar estado
-        </button>
-      </section>
 
-      <div class="orders-list">
-        @for (ped of pedidosFiltrados(); track ped.id) {
-          <article class="order-card">
-            <div class="order-card-header">
-              <div>
-                <span class="order-code">{{ ped.codigo }}</span>
-                <span class="order-date">📅 {{ ped.fechaRegistro }}</span>
-                @if (ped.nombreCliente) {
-                  <span class="order-client">👤 {{ ped.nombreCliente }} ({{ ped.codigoCliente }})</span>
+        <!-- Grilla de Platos Circulares Flotantes sobre Cúpula/Arco (3 columnas fijas) -->
+        <div class="dome-grid">
+          @for (p of productosFiltrados(); track p.id) {
+            <article
+              class="dome-card"
+              [class.agotado]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+            >
+              <span
+                class="stock-orb"
+                [class.out]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+              >
+                @if (!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)) {
+                  AGOTADO
+                } @else {
+                  STOCK {{ p.stock ?? '∞' }}
                 }
-              </div>
-              <div class="order-badges">
-                <span class="badge-status" [attr.data-status]="ped.estado">
-                  {{ ped.estado }}
-                </span>
-                <span class="badge-pay" [attr.data-pay]="ped.estadoPago">
-                  {{ ped.metodoPago }} · {{ ped.estadoPago }}
-                </span>
-              </div>
-            </div>
+              </span>
 
-            <div class="order-items">
-              @for (item of ped.items; track $index) {
-                <div class="order-item-row">
-                  <span><strong>{{ item.cantidad }}x</strong> {{ item.nombreProducto }}</span>
-                  <span>S/ {{ item.subtotal | number: '1.2-2' }}</span>
-                </div>
-              }
-            </div>
-
-            @if (ped.mensaje) {
-              <p class="order-note">💬 Nota: "{{ ped.mensaje }}"</p>
-            }
-
-            <div class="order-card-footer">
-              <div class="order-total">
-                Total: <strong>S/ {{ ped.total | number: '1.2-2' }}</strong>
+              <div class="floating-plate">
+                <img
+                  [src]="p.imagenUrl || imagenPorDefecto(p.categoria)"
+                  [alt]="p.nombre"
+                  loading="lazy"
+                />
               </div>
-              @if (ped.estado === 'NUEVO') {
+
+              <span class="cat-mini-label">{{ p.categoria }}</span>
+              <h3>{{ p.nombre }}</h3>
+              <p>{{ p.descripcion || 'Preparado al instante en cafetería.' }}</p>
+
+              <div class="dome-footer">
+                <span class="price-mono">S/ {{ p.precio | number: '1.2-2' }}</span>
                 <button
                   type="button"
-                  class="btn-danger-sm"
-                  (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                  class="btn-add-dome"
+                  [disabled]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+                  (click)="agregarAlCarrito(p)"
                 >
-                  Cancelar pedido
+                  <svg class="icon-sm" viewBox="0 0 24 24">
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                  </svg>
+                  <span>
+                    {{
+                      !p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)
+                        ? 'Sin Stock'
+                        : 'Al Ticket'
+                    }}
+                  </span>
                 </button>
-              }
+              </div>
+            </article>
+          } @empty {
+            <div class="empty-ticket-box">
+              <h3 style="margin-bottom: 6px;">No encontramos platos con ese filtro</h3>
+              <p style="color: var(--muted); font-size: 0.86rem; margin-bottom: 14px;">
+                Prueba seleccionando otra categoría o restableciendo el buscador.
+              </p>
+              <button type="button" class="btn-add-dome" (click)="resetearFiltroTodos()">
+                Ver toda la carta
+              </button>
             </div>
-          </article>
-        } @empty {
-          <div class="empty-state">
-            <h3>Aún no tienes pedidos registrados</h3>
-            <p>Explora la carta del día y realiza tu primer pedido.</p>
-            <button type="button" class="btn-primary" (click)="cambiarVista('CATALOGO')">
-              Ir a la Carta
-            </button>
-          </div>
-        }
-      </div>
-    }
-
-    <!-- ==================== VISTA 3: PANEL CAFETERÍA (ADMIN) ==================== -->
-    @if (vistaActiva() === 'ADMIN' && esCafeteria()) {
-      <section class="admin-header">
-        <div>
-          <h2>⚙️ Panel de Control · Cafetería UTP</h2>
-          <p>Administración de pedidos en cocina, caja, catálogo de productos y usuarios.</p>
-        </div>
-
-        <div class="admin-tabs">
-          <button
-            type="button"
-            class="tab-btn"
-            [class.active]="subVistaAdmin() === 'PEDIDOS'"
-            (click)="cambiarSubVistaAdmin('PEDIDOS')"
-          >
-            📋 Pedidos y Caja ({{ pedidos().length }})
-          </button>
-          <button
-            type="button"
-            class="tab-btn"
-            [class.active]="subVistaAdmin() === 'PRODUCTOS'"
-            (click)="cambiarSubVistaAdmin('PRODUCTOS')"
-          >
-            🍔 Productos ({{ productos().length }})
-          </button>
-          <button
-            type="button"
-            class="tab-btn"
-            [class.active]="subVistaAdmin() === 'USUARIOS'"
-            (click)="cambiarSubVistaAdmin('USUARIOS')"
-          >
-            👥 Usuarios
-          </button>
+          }
         </div>
       </section>
+    }
 
-      <!-- SUB-VISTA 3.1: GESTIÓN DE PEDIDOS Y RECAUDACIÓN -->
-      @if (subVistaAdmin() === 'PEDIDOS') {
-        <section class="kpi-grid">
-          <div class="kpi-card kpi-revenue">
-            <div class="kpi-top">
-              <span>💰 Recaudación (Entregados)</span>
-              <input
-                type="date"
-                [(ngModel)]="fechaRecaudacion"
-                (change)="consultarRecaudacion()"
-              />
-            </div>
-            <strong>S/ {{ totalRecaudadoDia() | number: '1.2-2' }}</strong>
+    <!-- ==================== VISTA 02: MIS PEDIDOS (STEPPER INTERACTIVO) ==================== -->
+    @if (vistaActiva() === 'MIS_PEDIDOS') {
+      <section>
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;"
+        >
+          <div>
+            <h2 style="font-size: 1.7rem;">02 / Boletos de Pedido & Seguimiento</h2>
+            <p style="color: var(--muted); font-size: 0.88rem;">
+              Sigue en tiempo real las 4 etapas de preparación de tu orden.
+            </p>
           </div>
-          <div class="kpi-card">
-            <span>🔔 Nuevos</span>
-            <strong>{{ resumenEstados().nuevos }}</strong>
-          </div>
-          <div class="kpi-card">
-            <span>🍳 En Preparación</span>
-            <strong>{{ resumenEstados().preparacion }}</strong>
-          </div>
-          <div class="kpi-card">
-            <span>✅ Listos para Entrega</span>
-            <strong>{{ resumenEstados().listos }}</strong>
-          </div>
-        </section>
-
-        <div class="toolbar">
-          <div class="category-pills">
-            @for (est of ['TODOS', 'NUEVO', 'EN_PREPARACION', 'LISTO', 'ENTREGADO', 'CANCELADO']; track est) {
-              <button
-                type="button"
-                class="pill"
-                [class.active]="filtroEstadoPedido() === est"
-                (click)="filtroEstadoPedido.set(est)"
-              >
-                {{ est }}
-              </button>
-            }
-          </div>
-          <button type="button" class="btn-outline" (click)="cargarPedidos(); consultarRecaudacion()">
-            ↻ Refrescar tablero
+          <button type="button" class="tab-arc-btn" (click)="cargarPedidos()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 16h5v5" />
+            </svg>
+            <span>Actualizar Estado</span>
           </button>
         </div>
 
-        <div class="orders-list">
+        <div style="display: flex; flex-direction: column; gap: 18px;">
           @for (ped of pedidosFiltrados(); track ped.id) {
-            <article class="order-card admin-order-card">
-              <div class="order-card-header">
+            <article class="ticket-order-card">
+              <div
+                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"
+              >
                 <div>
-                  <span class="order-code">{{ ped.codigo }}</span>
-                  <span class="order-client">
-                    👤 {{ ped.nombreCliente || 'Cliente #' + ped.clienteId }}
-                    ({{ ped.codigoCliente || 'ID: ' + ped.clienteId }})
+                  <span class="font-mono" style="font-size: 1.1rem; font-weight: 700;">
+                    BOLETO #{{ ped.codigo }}
                   </span>
-                  <span class="order-date">🕒 {{ ped.fechaRegistro }}</span>
-                </div>
-                <div class="order-badges">
-                  <span class="badge-status" [attr.data-status]="ped.estado">{{ ped.estado }}</span>
-                  <span class="badge-pay" [attr.data-pay]="ped.estadoPago">
-                    {{ ped.metodoPago }} · {{ ped.estadoPago }}
-                    @if (ped.referenciaPago) {
-                      (Ref: {{ ped.referenciaPago }})
+                  <span class="font-mono" style="font-size: 0.76rem; color: var(--muted); margin-left: 10px;">
+                    {{ ped.fechaRegistro }}
+                    @if (ped.nombreCliente) {
+                      · {{ ped.nombreCliente }} ({{ ped.codigoCliente }})
                     }
                   </span>
                 </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <span class="ready-code" style="background: var(--ink);">
+                    {{ ped.metodoPago }} · {{ ped.estadoPago }}
+                  </span>
+                  <span
+                    class="ready-code"
+                    [style.background]="ped.estado === 'CANCELADO' ? 'var(--utp-red)' : 'var(--green)'"
+                  >
+                    {{ ped.estado }}
+                  </span>
+                </div>
               </div>
 
-              <div class="order-items">
+              @if (ped.estado !== 'CANCELADO') {
+                <div class="stepper-track">
+                  <div
+                    class="step-node"
+                    [class.active]="ped.estado === 'NUEVO'"
+                    [class.done]="esEtapaCompletada(ped.estado, 'NUEVO')"
+                  >
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    <span>01 RECIBIDO</span>
+                  </div>
+                  <div
+                    class="step-node"
+                    [class.active]="ped.estado === 'EN_PREPARACION'"
+                    [class.done]="esEtapaCompletada(ped.estado, 'EN_PREPARACION')"
+                  >
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                    </svg>
+                    <span>02 EN COCINA</span>
+                  </div>
+                  <div
+                    class="step-node"
+                    [class.active]="ped.estado === 'LISTO'"
+                    [class.done]="esEtapaCompletada(ped.estado, 'LISTO')"
+                  >
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                    </svg>
+                    <span>03 LISTO EN BARRA</span>
+                  </div>
+                  <div
+                    class="step-node"
+                    [class.done]="ped.estado === 'ENTREGADO'"
+                  >
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <path d="m16 16 2 2 4-4" />
+                      <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14" />
+                      <path d="m7.5 4.27 9 5.15" />
+                      <polyline points="3.29 7 12 12 20.71 7" />
+                      <line x1="12" y1="22" x2="12" y2="12" />
+                    </svg>
+                    <span>04 ENTREGADO</span>
+                  </div>
+                </div>
+              } @else {
+                <p class="font-mono" style="color: var(--utp-red); margin: 14px 0;">
+                  [ ORDEN CANCELADA ]
+                </p>
+              }
+
+              <div style="margin-bottom: 10px;">
                 @for (item of ped.items; track $index) {
-                  <div class="order-item-row">
+                  <div class="receipt-row">
                     <span><strong>{{ item.cantidad }}x</strong> {{ item.nombreProducto }}</span>
-                    <span>S/ {{ item.subtotal | number: '1.2-2' }}</span>
+                    <strong>S/ {{ item.subtotal | number: '1.2-2' }}</strong>
                   </div>
                 }
               </div>
 
               @if (ped.mensaje) {
-                <p class="order-note">💬 Nota del estudiante: "{{ ped.mensaje }}"</p>
+                <p class="font-mono" style="font-size: 0.75rem; color: var(--muted); margin-bottom: 10px;">
+                  Nota cocina: "{{ ped.mensaje }}"
+                </p>
               }
 
-              <div class="admin-order-actions">
-                <div class="order-total">
-                  Total: <strong>S/ {{ ped.total | number: '1.2-2' }}</strong>
-                </div>
-
-                <div class="action-buttons">
-                  @if (ped.estadoPago !== 'PAGADO' && ped.estado !== 'CANCELADO') {
-                    <button
-                      type="button"
-                      class="btn-action btn-pay"
-                      (click)="actualizarEstadoPedido(ped, { estadoPago: 'PAGADO' })"
-                    >
-                      💳 Confirmar Pago
-                    </button>
-                  }
-                  @if (ped.estado === 'NUEVO') {
-                    <button
-                      type="button"
-                      class="btn-action btn-prep"
-                      (click)="actualizarEstadoPedido(ped, { estado: 'EN_PREPARACION' })"
-                    >
-                      🍳 En Preparación
-                    </button>
-                  }
-                  @if (ped.estado === 'NUEVO' || ped.estado === 'EN_PREPARACION') {
-                    <button
-                      type="button"
-                      class="btn-action btn-ready"
-                      (click)="actualizarEstadoPedido(ped, { estado: 'LISTO' })"
-                    >
-                      🔔 Marcar LISTO
-                    </button>
-                  }
-                  @if (ped.estado === 'LISTO') {
-                    <button
-                      type="button"
-                      class="btn-action btn-deliver"
-                      (click)="actualizarEstadoPedido(ped, { estado: 'ENTREGADO', estadoPago: 'PAGADO' })"
-                    >
-                      ✅ Entregar Pedido
-                    </button>
-                  }
-                  @if (ped.estado !== 'CANCELADO' && ped.estado !== 'ENTREGADO') {
-                    <button
-                      type="button"
-                      class="btn-danger-sm"
-                      (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
-                    >
-                      Cancelar
-                    </button>
-                  }
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px;">
+                <strong class="font-mono" style="font-size: 1.02rem;">
+                  TOTAL: S/ {{ ped.total | number: '1.2-2' }}
+                </strong>
+                @if (ped.estado === 'NUEVO') {
                   <button
                     type="button"
-                    class="btn-icon-del"
-                    title="Eliminar registro"
-                    (click)="eliminarPedidoAdmin(ped)"
+                    class="action-pill red"
+                    (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
                   >
-                    🗑️
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="m15 9-6 6" />
+                      <path d="m9 9 6 6" />
+                    </svg>
+                    <span>Cancelar Orden</span>
                   </button>
-                </div>
+                }
               </div>
             </article>
           } @empty {
-            <div class="empty-state">
-              <h3>No hay pedidos en este estado</h3>
+            <div class="empty-ticket-box">
+              <h3 style="margin-bottom: 6px;">Aún no tienes boletos de pedido registrados</h3>
+              <p style="color: var(--muted); font-size: 0.86rem; margin-bottom: 14px;">
+                Selecciona tus platos en la Carta del Día y emite tu primera orden.
+              </p>
+              <button type="button" class="btn-add-dome" (click)="cambiarVista('CATALOGO')">
+                Ir a la Carta del Día
+              </button>
             </div>
           }
         </div>
-      }
+      </section>
+    }
 
-      <!-- SUB-VISTA 3.2: CRUD DE PRODUCTOS -->
-      @if (subVistaAdmin() === 'PRODUCTOS') {
-        <div class="admin-Subheader">
-          <h3>Catálogo de Productos</h3>
-          <button type="button" class="btn-primary" (click)="abrirModalNuevoProducto()">
-            + Nuevo Producto
-          </button>
+    <!-- ==================== VISTA 03: PANEL CAFETERÍA (ADMIN INTERACTIVO Y ORDENADO) ==================== -->
+    @if (vistaActiva() === 'ADMIN' && esCafeteria()) {
+      <section>
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;"
+        >
+          <div>
+            <h2 style="font-size: 1.7rem;">03 / Control de Caja, Cocina y Catálogo</h2>
+            <p style="color: var(--muted); font-size: 0.88rem;">
+              Cambia estados de pedidos en un clic y administra productos o usuarios.
+            </p>
+          </div>
+          <div class="admin-subtabs">
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaAdmin() === 'PEDIDOS'"
+              (click)="cambiarSubVistaAdmin('PEDIDOS')"
+            >
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                <path d="M12 11h4" />
+                <path d="M12 16h4" />
+                <path d="M8 11h.01" />
+                <path d="M8 16h.01" />
+              </svg>
+              <span>Comandas Activas</span>
+            </button>
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaAdmin() === 'PRODUCTOS'"
+              (click)="cambiarSubVistaAdmin('PRODUCTOS')"
+            >
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M16.5 9.4 7.55 4.24" />
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.29 7 12 12 20.71 7" />
+                <line x1="12" y1="22" x2="12" y2="12" />
+              </svg>
+              <span>CRUD Productos</span>
+            </button>
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaAdmin() === 'USUARIOS'"
+              (click)="cambiarSubVistaAdmin('USUARIOS')"
+            >
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span>CRUD Usuarios</span>
+            </button>
+          </div>
         </div>
 
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Precio</th>
-                <th>Stock</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of productos(); track p.id) {
-                <tr>
-                  <td>#{{ p.id }}</td>
-                  <td>
-                    <div class="table-prod">
-                      <img [src]="p.imagenUrl || imagenPorDefecto(p.categoria)" [alt]="p.nombre" />
+        <!-- 4 KPIs en una sola fila simétrica de 4 columnas -->
+        <div class="admin-kpi-row">
+          <div class="kpi-arch highlight">
+            <span class="kpi-label">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+                <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+              </svg>
+              <span>Recaudación</span>
+            </span>
+            <strong>S/ {{ totalRecaudadoDia() | number: '1.2-2' }}</strong>
+            <input
+              type="date"
+              class="kpi-date-input"
+              [(ngModel)]="fechaRecaudacion"
+              (change)="consultarRecaudacion()"
+            />
+          </div>
+
+          <div class="kpi-arch">
+            <span class="kpi-label">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+                <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+              </svg>
+              <span>Nuevos</span>
+            </span>
+            <strong>{{ resumenEstados().nuevos }}</strong>
+          </div>
+
+          <div class="kpi-arch">
+            <span class="kpi-label">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+              </svg>
+              <span>En Cocina</span>
+            </span>
+            <strong>{{ resumenEstados().preparacion }}</strong>
+          </div>
+
+          <div class="kpi-arch">
+            <span class="kpi-label">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </svg>
+              <span>Listos en Barra</span>
+            </span>
+            <strong>{{ resumenEstados().listos }}</strong>
+          </div>
+        </div>
+
+        <!-- SUB-VISTA ADMIN 1: COMANDAS ACTIVAS EN GRILLA DE 2 COLUMNAS -->
+        @if (subVistaAdmin() === 'PEDIDOS') {
+          <div>
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;"
+            >
+              <h3 style="font-size: 1.15rem;">
+                Tablero de Comandas ({{ pedidosFiltrados().length }})
+              </h3>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'TODOS'"
+                  (click)="filtroEstadoPedido.set('TODOS')"
+                >
+                  Todas
+                </button>
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'NUEVO'"
+                  (click)="filtroEstadoPedido.set('NUEVO')"
+                >
+                  Nuevas
+                </button>
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'EN_PREPARACION'"
+                  (click)="filtroEstadoPedido.set('EN_PREPARACION')"
+                >
+                  En Cocina
+                </button>
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'LISTO'"
+                  (click)="filtroEstadoPedido.set('LISTO')"
+                >
+                  Listas en Barra
+                </button>
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'ENTREGADO'"
+                  (click)="filtroEstadoPedido.set('ENTREGADO')"
+                >
+                  Entregadas
+                </button>
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'CANCELADO'"
+                  (click)="filtroEstadoPedido.set('CANCELADO')"
+                >
+                  Canceladas
+                </button>
+              </div>
+            </div>
+
+            <div class="comandas-grid">
+              @for (ped of pedidosFiltrados(); track ped.id) {
+                <article class="comanda-card">
+                  <div>
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 10px;"
+                    >
                       <div>
-                        <strong>{{ p.nombre }}</strong>
-                        <small>{{ p.descripcion }}</small>
+                        <strong class="font-mono" style="font-size: 1.02rem;">#{{ ped.codigo }}</strong>
+                        <div style="font-size: 0.84rem; font-weight: 700; margin-top: 2px;">
+                          {{ ped.nombreCliente || 'Cliente #' + ped.clienteId }}
+                          ({{ ped.codigoCliente || 'ID: ' + ped.clienteId }})
+                        </div>
+                        <small class="font-mono" style="color: var(--muted); font-size: 0.7rem;">
+                          {{ ped.fechaRegistro }}
+                          @if (ped.referenciaPago) {
+                            · Ref: {{ ped.referenciaPago }}
+                          }
+                        </small>
+                      </div>
+                      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <span
+                          class="ready-code"
+                          [style.background]="ped.estado === 'CANCELADO' ? 'var(--utp-red)' : 'var(--green)'"
+                        >
+                          {{ ped.estado }}
+                        </span>
+                        <span class="ready-code" style="background: var(--ink); font-size: 0.68rem;">
+                          {{ ped.metodoPago }} · {{ ped.estadoPago }}
+                        </span>
                       </div>
                     </div>
-                  </td>
-                  <td><span class="category-tag-inline">{{ p.categoria }}</span></td>
-                  <td><strong>S/ {{ p.precio | number: '1.2-2' }}</strong></td>
-                  <td>{{ p.stock ?? 'Ilimitado' }}</td>
-                  <td>
-                    <span class="status-dot" [class.online]="p.disponible">
-                      {{ p.disponible ? 'Disponible' : 'Agotado' }}
-                    </span>
-                  </td>
-                  <td class="td-actions">
-                    <button type="button" class="btn-outline-sm" (click)="abrirModalEditarProducto(p)">
+
+                    <div style="margin-bottom: 12px;">
+                      @for (item of ped.items; track $index) {
+                        <div class="receipt-row">
+                          <span><strong>{{ item.cantidad }}x</strong> {{ item.nombreProducto }}</span>
+                          <strong>S/ {{ item.subtotal | number: '1.2-2' }}</strong>
+                        </div>
+                      }
+                    </div>
+
+                    @if (ped.mensaje) {
+                      <div
+                        class="font-mono"
+                        style="font-size: 0.72rem; color: var(--muted); background: #F5F2EB; padding: 6px 10px; margin-bottom: 10px;"
+                      >
+                        Nota: "{{ ped.mensaje }}"
+                      </div>
+                    }
+                  </div>
+
+                  <!-- Pie de comanda fijo en 2 filas simétricas que nunca se desarman -->
+                  <div>
+                    <div class="comanda-pay-row">
+                      <strong class="font-mono" style="font-size: 0.95rem;">
+                        Total: S/ {{ ped.total | number: '1.2-2' }}
+                      </strong>
+                      @if (ped.estadoPago !== 'PAGADO') {
+                        <button
+                          type="button"
+                          class="action-pill green"
+                          style="min-width: 138px; justify-content: center;"
+                          (click)="actualizarEstadoPedido(ped, { estadoPago: 'PAGADO' })"
+                        >
+                          <svg class="icon-sm" viewBox="0 0 24 24">
+                            <rect width="20" height="14" x="2" y="5" rx="2" />
+                            <line x1="2" y1="10" x2="22" y2="10" />
+                          </svg>
+                          <span>Confirmar Pago</span>
+                        </button>
+                      } @else {
+                        <span
+                          class="action-pill"
+                          style="min-width: 138px; justify-content: center; background: var(--green-soft); color: #0F766E; border-color: #5EEAD4; cursor: default;"
+                        >
+                          <svg class="icon-sm" viewBox="0 0 24 24">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <path d="m9 11 3 3L22 4" />
+                          </svg>
+                          <span>Pago Verificado</span>
+                        </span>
+                      }
+                    </div>
+
+                    <div class="comanda-actions-grid">
+                      <button
+                        type="button"
+                        class="action-pill"
+                        (click)="actualizarEstadoPedido(ped, { estado: 'EN_PREPARACION' })"
+                      >
+                        <svg class="icon-sm" viewBox="0 0 24 24">
+                          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                        </svg>
+                        <span>Cocina</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="action-pill amber"
+                        (click)="actualizarEstadoPedido(ped, { estado: 'LISTO' })"
+                      >
+                        <svg class="icon-sm" viewBox="0 0 24 24">
+                          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                        </svg>
+                        <span>Listo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="action-pill green"
+                        (click)="actualizarEstadoPedido(ped, { estado: 'ENTREGADO', estadoPago: 'PAGADO' })"
+                      >
+                        <svg class="icon-sm" viewBox="0 0 24 24">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        <span>Entregar</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="action-pill red"
+                        style="padding: 6px 10px;"
+                        title="Cancelar orden"
+                        (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                      >
+                        <svg class="icon-sm" viewBox="0 0 24 24">
+                          <path d="M18 6 6 18" />
+                          <path d="m6 6 12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              } @empty {
+                <div class="empty-ticket-box">
+                  <h3>No hay comandas registradas en este estado</h3>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- SUB-VISTA ADMIN 2: CRUD PRODUCTOS -->
+        @if (subVistaAdmin() === 'PRODUCTOS') {
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <h3>Catálogo de Productos ({{ productos().length }})</h3>
+              <button type="button" class="btn-add-dome" (click)="abrirModalNuevoProducto()">
+                <svg class="icon-sm" viewBox="0 0 24 24">
+                  <path d="M5 12h14" />
+                  <path d="M12 5v14" />
+                </svg>
+                <span>Nuevo Producto</span>
+              </button>
+            </div>
+
+            <div class="ticket-order-card">
+              @for (pr of productos(); track pr.id) {
+                <div class="receipt-row">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img
+                      [src]="pr.imagenUrl || imagenPorDefecto(pr.categoria)"
+                      [alt]="pr.nombre"
+                      style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ink);"
+                    />
+                    <div>
+                      <strong>#{{ pr.id }} · {{ pr.nombre }}</strong>
+                      <small style="color: var(--muted); margin-left: 8px;">
+                        [{{ pr.categoria }}] · Stock: {{ pr.stock ?? '∞' }}
+                      </small>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <strong>S/ {{ pr.precio | number: '1.2-2' }}</strong>
+                    <button type="button" class="action-pill" (click)="sumarStockRapido(pr, 5)">
+                      <svg class="icon-sm" viewBox="0 0 24 24">
+                        <path d="M5 12h14" />
+                        <path d="M12 5v14" />
+                      </svg>
+                      <span>5 Stock</span>
+                    </button>
+                    <button type="button" class="action-pill" (click)="abrirModalEditarProducto(pr)">
                       Editar
                     </button>
-                    <button type="button" class="btn-danger-sm" (click)="eliminarProductoAdmin(p)">
+                    <button type="button" class="action-pill red" (click)="eliminarProductoAdmin(pr)">
                       Eliminar
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               }
-            </tbody>
-          </table>
-        </div>
-      }
+            </div>
+          </div>
+        }
 
-      <!-- SUB-VISTA 3.3: CRUD DE USUARIOS -->
-      @if (subVistaAdmin() === 'USUARIOS') {
-        <div class="admin-Subheader">
-          <h3>Usuarios Registrados</h3>
-          <button type="button" class="btn-primary" (click)="abrirModalNuevoUsuario()">
-            + Nuevo Usuario
-          </button>
-        </div>
+        <!-- SUB-VISTA ADMIN 3: CRUD USUARIOS -->
+        @if (subVistaAdmin() === 'USUARIOS') {
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <h3>Usuarios del Sistema ({{ usuarios().length }})</h3>
+              <button type="button" class="btn-add-dome" (click)="abrirModalNuevoUsuario()">
+                <svg class="icon-sm" viewBox="0 0 24 24">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+                <span>Nuevo Usuario</span>
+              </button>
+            </div>
 
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Código</th>
-                <th>Nombre Completo</th>
-                <th>Correo Institucional</th>
-                <th>Rol</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
+            <div class="ticket-order-card">
               @for (u of usuarios(); track u.id) {
-                <tr>
-                  <td>#{{ u.id }}</td>
-                  <td><strong>{{ u.codigo }}</strong></td>
-                  <td>{{ u.nombreCompleto }}</td>
-                  <td>{{ u.correo }}</td>
-                  <td>
-                    <span class="role-badge" [class.role-admin]="u.rol === 'CAFETERIA'">
-                      {{ u.rol }}
-                    </span>
-                  </td>
-                  <td class="td-actions">
-                    <button type="button" class="btn-outline-sm" (click)="abrirModalEditarUsuario(u)">
+                <div class="receipt-row">
+                  <div>
+                    <strong>{{ u.codigo }} · {{ u.nombreCompleto }}</strong>
+                    <small style="color: var(--muted); margin-left: 8px;">
+                      {{ u.correo }} · ROL: {{ u.rol }}
+                    </small>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="action-pill" (click)="abrirModalEditarUsuario(u)">
                       Editar
                     </button>
-                    <button type="button" class="btn-danger-sm" (click)="eliminarUsuarioAdmin(u)">
+                    <button type="button" class="action-pill red" (click)="eliminarUsuarioAdmin(u)">
                       Eliminar
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               }
-            </tbody>
-          </table>
-        </div>
-      }
+            </div>
+          </div>
+        }
+      </section>
     }
   </main>
 
-  <!-- ==================== DRAWER LATERAL DEL CARRITO ==================== -->
-  @if (mostrarCarrito()) {
-    <div class="modal-backdrop" (click)="mostrarCarrito.set(false)">
-      <aside class="cart-drawer" (click)="$event.stopPropagation()">
-        <div class="drawer-header">
-          <h3>🛒 Tu Pedido Actual</h3>
-          <button type="button" class="btn-close" (click)="mostrarCarrito.set(false)">✕</button>
-        </div>
+  <!-- ==================== COLUMNA 3: TICKET DE COMPRA REAL ==================== -->
+  <aside class="ticket-dock">
+    <div class="paper-receipt">
+      <div class="receipt-head">
+        <h3>
+          <svg class="icon-md" viewBox="0 0 24 24">
+            <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+            <path d="M12 17.5v-11" />
+          </svg>
+          <span>TICKET DE ORDEN</span>
+        </h3>
+        <small>SEDE PIURA · CAJA RÁPIDA</small>
+      </div>
 
-        <div class="drawer-body">
-          @for (item of carrito(); track item.producto.id) {
-            <div class="cart-item">
-              <div class="cart-item-info">
-                <strong>{{ item.producto.nombre }}</strong>
-                <span>S/ {{ item.producto.precio | number: '1.2-2' }} c/u</span>
-              </div>
-              <div class="cart-qty">
-                <button type="button" (click)="cambiarCantidadCarrito(item.producto.id, -1)">−</button>
-                <span>{{ item.cantidad }}</span>
-                <button type="button" (click)="cambiarCantidadCarrito(item.producto.id, 1)">+</button>
-              </div>
-              <div class="cart-item-sub">
-                S/ {{ item.producto.precio * item.cantidad | number: '1.2-2' }}
-              </div>
+      <div class="receipt-items">
+        @for (item of carrito(); track item.producto.id) {
+          <div class="receipt-row">
+            <div style="flex: 1;">
+              <strong>{{ item.producto.nombre }}</strong><br />
+              <small style="color: var(--muted);">
+                S/ {{ item.producto.precio | number: '1.2-2' }} c/u
+              </small>
             </div>
-          } @empty {
-            <div class="empty-cart">
-              <p>Aún no has agregado productos a tu pedido.</p>
+            <div class="qty-stepper">
+              <button
+                type="button"
+                class="qty-btn"
+                (click)="cambiarCantidadCarrito(item.producto.id, -1)"
+              >
+                -
+              </button>
+              <strong>{{ item.cantidad }}</strong>
+              <button
+                type="button"
+                class="qty-btn"
+                (click)="cambiarCantidadCarrito(item.producto.id, 1)"
+              >
+                +
+              </button>
             </div>
-          }
-
-          @if (carrito().length > 0) {
-            <div class="checkout-form">
-              <h4>Método de Pago</h4>
-              <div class="payment-options">
-                @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
-                  <label class="pay-radio" [class.selected]="metodoPago === m">
-                    <input type="radio" name="metodoPago" [value]="m" [(ngModel)]="metodoPago" />
-                    {{ m }}
-                  </label>
-                }
-              </div>
-
-              <label class="field-label">
-                Código de operación / Referencia (opcional)
-                <input
-                  type="text"
-                  placeholder="Ej. Nro operación Yape/Plin: 849201"
-                  [(ngModel)]="referenciaPago"
-                />
-              </label>
-
-              <label class="field-label">
-                Indicaciones para cafetería (opcional)
-                <textarea
-                  rows="2"
-                  placeholder="Ej. Sin cremas, café sin azúcar..."
-                  [(ngModel)]="mensajePedido"
-                ></textarea>
-              </label>
-            </div>
-          }
-        </div>
-
-        <div class="drawer-footer">
-          <div class="drawer-total">
-            <span>Total a pagar</span>
-            <strong>S/ {{ totalMontoCarrito() | number: '1.2-2' }}</strong>
+            <strong style="min-width: 62px; text-align: right;">
+              S/ {{ item.producto.precio * item.cantidad | number: '1.2-2' }}
+            </strong>
           </div>
+        } @empty {
+          <div
+            style="text-align: center; padding: 36px 10px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.76rem;"
+          >
+            [ TICKET VACÍO ]<br />Selecciona platos de la carta
+          </div>
+        }
+      </div>
+
+      <div class="receipt-pay-box">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="font-mono" style="font-size: 0.72rem; font-weight: 700;">MÉTODO DE PAGO:</span>
           <button
             type="button"
-            class="btn-primary btn-block"
-            [disabled]="carrito().length === 0 || cargando()"
-            (click)="confirmarPedido()"
+            (click)="vaciarCarrito()"
+            style="border: none; background: none; color: var(--utp-red); font-family: 'Space Mono', monospace; font-size: 0.7rem; cursor: pointer;"
           >
-            {{ estaAutenticado() ? 'Confirmar y Enviar Pedido' : 'Iniciar Sesión para Pedir' }}
+            [Vaciar]
           </button>
         </div>
-      </aside>
-    </div>
-  }
 
-  <!-- ==================== MODAL DE LOGIN Y REGISTRO ==================== -->
+        <div class="pay-selector">
+          @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
+            <button
+              type="button"
+              class="pay-option"
+              [class.active]="metodoPago === m"
+              (click)="metodoPago = m"
+            >
+              {{ m }}
+            </button>
+          }
+        </div>
+
+        <input
+          type="text"
+          class="receipt-input"
+          placeholder="N° Operación / Referencia (opc.)"
+          [(ngModel)]="referenciaPago"
+        />
+        <input
+          type="text"
+          class="receipt-input"
+          placeholder="Nota cocina: ej. sin cremas..."
+          [(ngModel)]="mensajePedido"
+        />
+
+        <div
+          style="display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0;"
+          class="font-mono"
+        >
+          <span style="font-size: 0.82rem; font-weight: 700;">TOTAL TICKET:</span>
+          <strong style="font-size: 1.25rem; color: var(--utp-red);">
+            S/ {{ totalMontoCarrito() | number: '1.2-2' }}
+          </strong>
+        </div>
+
+        <button
+          type="button"
+          class="btn-emitir"
+          [disabled]="cargando()"
+          (click)="confirmarPedido()"
+        >
+          <span>EMITIR ORDEN A COCINA</span>
+          <svg class="icon-sm" viewBox="0 0 24 24">
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg>
+        </button>
+        <div class="barcode"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== MODAL LOGIN / REGISTRO ==================== -->
   @if (mostrarModalAuth()) {
-    <div class="modal-backdrop" (click)="mostrarModalAuth.set(false)">
-      <div class="modal-card" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <div class="auth-tabs">
-            <button
-              type="button"
-              [class.active]="modoAuth() === 'LOGIN'"
-              (click)="modoAuth.set('LOGIN')"
-            >
-              Iniciar Sesión
-            </button>
-            <button
-              type="button"
-              [class.active]="modoAuth() === 'REGISTRO'"
-              (click)="modoAuth.set('REGISTRO')"
-            >
-              Crear Cuenta Estudiante
-            </button>
-          </div>
-          <button type="button" class="btn-close" (click)="mostrarModalAuth.set(false)">✕</button>
+    <div class="modal-overlay" (click)="mostrarModalAuth.set(false)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <div class="auth-mode-switch">
+          <button
+            type="button"
+            class="tab-arc-btn"
+            [class.active]="modoAuth() === 'LOGIN'"
+            (click)="modoAuth.set('LOGIN')"
+          >
+            Iniciar Sesión
+          </button>
+          <button
+            type="button"
+            class="tab-arc-btn"
+            [class.active]="modoAuth() === 'REGISTRO'"
+            (click)="modoAuth.set('REGISTRO')"
+          >
+            Crear Cuenta Estudiante
+          </button>
         </div>
 
         @if (modoAuth() === 'LOGIN') {
-          <form class="modal-body" (ngSubmit)="iniciarSesion()">
-            <label class="field-label">
-              Código UTP o Correo
+          <form (ngSubmit)="iniciarSesion()">
+            <h3 style="margin-bottom: 6px;">Acceso Universitario UTP</h3>
+            <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
+              Ingresa con tu código UTP o cuenta administrativa de Cafetería.
+            </p>
+
+            <div class="field-group">
+              <label>Código UTP o Correo</label>
               <input
                 type="text"
-                name="identificador"
+                name="loginIdentificador"
                 placeholder="Ej. U2303001 o ADMIN"
                 [(ngModel)]="loginIdentificador"
                 required
               />
-            </label>
-            <label class="field-label">
-              Contraseña
+            </div>
+
+            <div class="field-group">
+              <label>Contraseña</label>
               <input
                 type="password"
-                name="password"
+                name="loginPassword"
                 placeholder="••••••••"
                 [(ngModel)]="loginPassword"
                 required
               />
-            </label>
+            </div>
 
-            <div class="demo-box">
-              <span>Acceso rápido de prueba (Rol Cafetería):</span>
-              <button type="button" class="btn-outline-sm" (click)="autocompletarAdmin()">
+            <div class="demo-access-strip">
+              <span>Acceso rápido Admin (Cafetería):</span>
+              <button type="button" class="action-pill" (click)="autocompletarAdmin()">
                 Autocompletar ADMIN
               </button>
             </div>
 
-            <button type="submit" class="btn-primary btn-block" [disabled]="cargando()">
-              Ingresar a Cafetería UTP
-            </button>
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button type="submit" class="btn-emitir" [disabled]="cargando()">
+                INGRESAR
+              </button>
+              <button type="button" class="tab-arc-btn" (click)="mostrarModalAuth.set(false)">
+                Cerrar
+              </button>
+            </div>
           </form>
         } @else {
-          <form class="modal-body" (ngSubmit)="registrarEstudiante()">
-            <label class="field-label">
-              Código Universitario
+          <form (ngSubmit)="registrarEstudiante()">
+            <h3 style="margin-bottom: 6px;">Registro de Estudiante UTP</h3>
+            <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
+              Crea tu cuenta para emitir órdenes digitales sin hacer cola.
+            </p>
+
+            <div class="field-group">
+              <label>Código Universitario</label>
               <input
                 type="text"
                 name="regCodigo"
@@ -692,9 +1095,10 @@
                 [(ngModel)]="regCodigo"
                 required
               />
-            </label>
-            <label class="field-label">
-              Nombre Completo
+            </div>
+
+            <div class="field-group">
+              <label>Nombre Completo</label>
               <input
                 type="text"
                 name="regNombre"
@@ -702,9 +1106,10 @@
                 [(ngModel)]="regNombre"
                 required
               />
-            </label>
-            <label class="field-label">
-              Correo Institucional
+            </div>
+
+            <div class="field-group">
+              <label>Correo Institucional</label>
               <input
                 type="email"
                 name="regCorreo"
@@ -712,9 +1117,10 @@
                 [(ngModel)]="regCorreo"
                 required
               />
-            </label>
-            <label class="field-label">
-              Contraseña (mínimo 8 caracteres)
+            </div>
+
+            <div class="field-group">
+              <label>Contraseña (mín. 8 caracteres)</label>
               <input
                 type="password"
                 name="regPassword"
@@ -722,10 +1128,16 @@
                 [(ngModel)]="regPassword"
                 required
               />
-            </label>
-            <button type="submit" class="btn-primary btn-block" [disabled]="cargando()">
-              Registrarme e Ingresar
-            </button>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button type="submit" class="btn-emitir" [disabled]="cargando()">
+                REGISTRARME E INGRESAR
+              </button>
+              <button type="button" class="tab-arc-btn" (click)="mostrarModalAuth.set(false)">
+                Cerrar
+              </button>
+            </div>
           </form>
         }
       </div>
@@ -734,29 +1146,36 @@
 
   <!-- ==================== MODAL ADMIN: PRODUCTO ==================== -->
   @if (mostrarModalProducto()) {
-    <div class="modal-backdrop" (click)="mostrarModalProducto.set(false)">
-      <div class="modal-card" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3>{{ productoEditandoId() ? 'Editar Producto' : 'Nuevo Producto' }}</h3>
-          <button type="button" class="btn-close" (click)="mostrarModalProducto.set(false)">✕</button>
-        </div>
-        <form class="modal-body" (ngSubmit)="guardarProductoAdmin()">
-          <label class="field-label">
-            Nombre del producto
-            <input type="text" name="prodNombre" [(ngModel)]="formProducto.nombre" required />
-          </label>
-          <div class="form-row">
-            <label class="field-label">
-              Categoría
-              <select name="prodCat" [(ngModel)]="formProducto.categoria">
-                <option value="SANDWICH">SANDWICH</option>
-                <option value="ANTOJITOS">ANTOJITOS</option>
-                <option value="BEBIDAS">BEBIDAS</option>
-                <option value="ENDULZATE">ENDULZATE</option>
-              </select>
-            </label>
-            <label class="field-label">
-              Precio (S/)
+    <div class="modal-overlay" (click)="mostrarModalProducto.set(false)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <h3 style="margin-bottom: 14px;">
+          {{ productoEditandoId() ? 'Editar Plato de la Carta' : 'Agregar Plato a la Carta' }}
+        </h3>
+        <form (ngSubmit)="guardarProductoAdmin()">
+          <div class="field-group">
+            <label>Nombre del Plato</label>
+            <input
+              type="text"
+              name="prodNombre"
+              placeholder="Ej. Triple Especial"
+              [(ngModel)]="formProducto.nombre"
+              required
+            />
+          </div>
+
+          <div class="field-group">
+            <label>Categoría</label>
+            <select name="prodCat" [(ngModel)]="formProducto.categoria">
+              <option value="SANDWICH">SANDWICH</option>
+              <option value="ANTOJITOS">ANTOJITOS</option>
+              <option value="BEBIDAS">BEBIDAS</option>
+              <option value="ENDULZATE">ENDULZATE</option>
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field-group">
+              <label>Precio (S/)</label>
               <input
                 type="number"
                 step="0.50"
@@ -764,30 +1183,46 @@
                 [(ngModel)]="formProducto.precio"
                 required
               />
-            </label>
-            <label class="field-label">
-              Stock
+            </div>
+            <div class="field-group">
+              <label>Stock</label>
               <input type="number" name="prodStock" [(ngModel)]="formProducto.stock" />
-            </label>
+            </div>
           </div>
-          <label class="field-label">
-            Descripción
-            <textarea rows="2" name="prodDesc" [(ngModel)]="formProducto.descripcion"></textarea>
-          </label>
-          <label class="field-label">
-            URL de Imagen (opcional)
+
+          <div class="field-group">
+            <label>Descripción</label>
+            <input
+              type="text"
+              name="prodDesc"
+              placeholder="Preparado al instante..."
+              [(ngModel)]="formProducto.descripcion"
+            />
+          </div>
+
+          <div class="field-group">
+            <label>URL de Imagen (opcional)</label>
             <input
               type="text"
               name="prodImg"
               placeholder="https://images.unsplash.com/..."
               [(ngModel)]="formProducto.imagenUrl"
             />
-          </label>
-          <label class="checkbox-label">
+          </div>
+
+          <label
+            style="display: flex; align-items: center; gap: 8px; font-family: 'Space Mono', monospace; font-size: 0.74rem; font-weight: 700; margin-top: 6px;"
+          >
             <input type="checkbox" name="prodDisp" [(ngModel)]="formProducto.disponible" />
-            Producto disponible para la venta
+            <span>PLATO DISPONIBLE EN CARTA</span>
           </label>
-          <button type="submit" class="btn-primary btn-block">Guardar Producto</button>
+
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button type="submit" class="btn-emitir">GUARDAR PLATO</button>
+            <button type="button" class="tab-arc-btn" (click)="mostrarModalProducto.set(false)">
+              Cancelar
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -795,39 +1230,48 @@
 
   <!-- ==================== MODAL ADMIN: USUARIO ==================== -->
   @if (mostrarModalUsuario()) {
-    <div class="modal-backdrop" (click)="mostrarModalUsuario.set(false)">
-      <div class="modal-card" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3>{{ usuarioEditandoId() ? 'Editar Usuario' : 'Nuevo Usuario' }}</h3>
-          <button type="button" class="btn-close" (click)="mostrarModalUsuario.set(false)">✕</button>
-        </div>
-        <form class="modal-body" (ngSubmit)="guardarUsuarioAdmin()">
-          <div class="form-row">
-            <label class="field-label">
-              Código
-              <input type="text" name="usuCodigo" [(ngModel)]="formUsuario.codigo" required />
-            </label>
-            <label class="field-label">
-              Rol
-              <select name="usuRol" [(ngModel)]="formUsuario.rol">
-                <option value="ESTUDIANTE">ESTUDIANTE</option>
-                <option value="CAFETERIA">CAFETERIA</option>
-              </select>
-            </label>
+    <div class="modal-overlay" (click)="mostrarModalUsuario.set(false)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <h3 style="margin-bottom: 14px;">
+          {{ usuarioEditandoId() ? 'Editar Usuario' : 'Registrar Nuevo Usuario' }}
+        </h3>
+        <form (ngSubmit)="guardarUsuarioAdmin()">
+          <div class="field-group">
+            <label>Código</label>
+            <input type="text" name="usrCod" [(ngModel)]="formUsuario.codigo" required />
           </div>
-          <label class="field-label">
-            Nombre Completo
-            <input type="text" name="usuNombre" [(ngModel)]="formUsuario.nombreCompleto" required />
-          </label>
-          <label class="field-label">
-            Correo Electrónico
-            <input type="email" name="usuCorreo" [(ngModel)]="formUsuario.correo" required />
-          </label>
-          <label class="field-label">
-            {{ usuarioEditandoId() ? 'Nueva Contraseña (dejar vacío para mantener)' : 'Contraseña (mín. 8 caracteres)' }}
-            <input type="password" name="usuPass" [(ngModel)]="formUsuario.password" />
-          </label>
-          <button type="submit" class="btn-primary btn-block">Guardar Usuario</button>
+
+          <div class="field-group">
+            <label>Nombre Completo</label>
+            <input type="text" name="usrNom" [(ngModel)]="formUsuario.nombreCompleto" required />
+          </div>
+
+          <div class="field-group">
+            <label>Correo Institucional</label>
+            <input type="email" name="usrCor" [(ngModel)]="formUsuario.correo" required />
+          </div>
+
+          <div class="field-group">
+            <label>Rol</label>
+            <select name="usrRol" [(ngModel)]="formUsuario.rol">
+              <option value="ESTUDIANTE">ESTUDIANTE</option>
+              <option value="CAFETERIA">CAFETERIA</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label>
+              Contraseña {{ usuarioEditandoId() ? '(dejar vacío para mantener)' : '(mín. 8 caracteres)' }}
+            </label>
+            <input type="password" name="usrPass" [(ngModel)]="formUsuario.password" />
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button type="submit" class="btn-emitir">GUARDAR USUARIO</button>
+            <button type="button" class="tab-arc-btn" (click)="mostrarModalUsuario.set(false)">
+              Cancelar
+            </button>
+          </div>
         </form>
       </div>
     </div>

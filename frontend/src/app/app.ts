@@ -29,6 +29,17 @@ export class App implements OnInit {
   esCafeteria = computed(() => this.sesion()?.rol === 'CAFETERIA');
   estaAutenticado = computed(() => !!this.sesion()?.token);
 
+  inicialesUsuario = computed(() => {
+    const s = this.sesion();
+    if (!s) return 'UT';
+    const base = (s.nombreCompleto || s.codigo || 'UT').trim();
+    const partes = base.split(/\s+/);
+    if (partes.length >= 2) {
+      return (partes[0][0] + partes[1][0]).toUpperCase();
+    }
+    return base.substring(0, 2).toUpperCase();
+  });
+
   // Modal Auth
   mostrarModalAuth = signal(false);
   modoAuth = signal<'LOGIN' | 'REGISTRO'>('LOGIN');
@@ -82,6 +93,10 @@ export class App implements OnInit {
   filtroEstadoPedido = signal<string>('TODOS');
   fechaRecaudacion = new Date().toISOString().slice(0, 10);
   totalRecaudadoDia = signal<number>(0);
+
+  pedidosListosEnBarra = computed(() =>
+    this.pedidos().filter((p) => p.estado === 'LISTO')
+  );
 
   pedidosFiltrados = computed(() => {
     const est = this.filtroEstadoPedido();
@@ -139,7 +154,27 @@ export class App implements OnInit {
       if (this.notificacion()?.texto === texto) {
         this.notificacion.set(null);
       }
-    }, 4000);
+    }, 3500);
+  }
+
+  resetearFiltroTodos(): void {
+    this.categoriaSeleccionada.set('TODOS');
+    this.busquedaProducto.set('');
+  }
+
+  cambiarCategoriaSelect(valor: string): void {
+    this.categoriaSeleccionada.set(valor);
+  }
+
+  esEtapaCompletada(
+    estadoActual: string,
+    etapa: 'NUEVO' | 'EN_PREPARACION' | 'LISTO' | 'ENTREGADO'
+  ): boolean {
+    const orden = ['NUEVO', 'EN_PREPARACION', 'LISTO', 'ENTREGADO'];
+    const idxActual = orden.indexOf(estadoActual);
+    const idxEtapa = orden.indexOf(etapa);
+    if (idxActual < 0 || idxEtapa < 0) return false;
+    return idxActual > idxEtapa || estadoActual === 'ENTREGADO';
   }
 
   cambiarVista(vista: 'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'): void {
@@ -303,7 +338,7 @@ export class App implements OnInit {
       actual.push({ producto, cantidad: 1 });
     }
     this.carrito.set(actual);
-    this.mostrarMensaje('exito', `${producto.nombre} añadido al pedido`);
+    this.mostrarMensaje('exito', `${producto.nombre} añadido al ticket`);
   }
 
   cambiarCantidadCarrito(productoId: number | undefined, delta: number): void {
@@ -332,13 +367,12 @@ export class App implements OnInit {
 
   confirmarPedido(): void {
     if (!this.estaAutenticado()) {
-      this.mostrarCarrito.set(false);
       this.abrirModalLogin();
-      this.mostrarMensaje('error', 'Inicia sesión o regístrate para confirmar tu pedido');
+      this.mostrarMensaje('error', 'Inicia sesión o regístrate para emitir tu orden');
       return;
     }
     if (this.carrito().length === 0) {
-      this.mostrarMensaje('error', 'Tu carrito está vacío');
+      this.mostrarMensaje('error', 'Agrega al menos un producto al ticket');
       return;
     }
 
@@ -360,8 +394,7 @@ export class App implements OnInit {
         this.carrito.set([]);
         this.referenciaPago = '';
         this.mensajePedido = '';
-        this.mostrarCarrito.set(false);
-        this.mostrarMensaje('exito', `¡Pedido ${pedidoCreado.codigo} registrado con éxito!`);
+        this.mostrarMensaje('exito', `Orden ${pedidoCreado.codigo} emitida con éxito`);
         this.cargarProductos();
         this.vistaActiva.set('MIS_PEDIDOS');
         this.cargarPedidos();
@@ -392,7 +425,7 @@ export class App implements OnInit {
         this.pedidos.set(
           this.pedidos().map((p) => (p.id === actualizado.id ? actualizado : p))
         );
-        this.mostrarMensaje('exito', `Pedido ${actualizado.codigo} actualizado`);
+        this.mostrarMensaje('exito', `Orden ${actualizado.codigo} actualizada`);
         this.cargarProductos();
         if (this.esCafeteria()) {
           this.consultarRecaudacion();
@@ -449,6 +482,24 @@ export class App implements OnInit {
     this.mostrarModalProducto.set(true);
   }
 
+  sumarStockRapido(p: Producto, cantidad: number): void {
+    if (!p.id) return;
+    const nuevoStock = (p.stock ?? 0) + cantidad;
+    const actualizado: Producto = {
+      ...p,
+      stock: nuevoStock,
+      disponible: nuevoStock > 0 ? true : p.disponible
+    };
+    this.api.actualizarProducto(p.id, actualizado).subscribe({
+      next: () => {
+        this.cargarProductos();
+        this.mostrarMensaje('exito', `Stock de ${p.nombre} actualizado a ${nuevoStock}`);
+      },
+      error: (err) =>
+        this.mostrarMensaje('error', err?.error?.error || 'No se pudo actualizar el stock')
+    });
+  }
+
   guardarProductoAdmin(): void {
     const id = this.productoEditandoId();
     const obs = id
@@ -461,7 +512,7 @@ export class App implements OnInit {
         this.cargarProductos();
         this.mostrarMensaje(
           'exito',
-          id ? 'Producto actualizado correctamente' : 'Producto creado correctamente'
+          id ? 'Plato actualizado correctamente' : 'Plato agregado a la carta'
         );
       },
       error: (err) =>
