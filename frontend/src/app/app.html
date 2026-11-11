@@ -1,0 +1,835 @@
+<div class="app-shell">
+  <!-- Notificación Toast -->
+  @if (notificacion(); as notif) {
+    <div class="toast" [class.toast-error]="notif.tipo === 'error'">
+      <span>{{ notif.tipo === 'exito' ? '✓' : '⚠' }}</span>
+      <p>{{ notif.texto }}</p>
+    </div>
+  }
+
+  <!-- Barra de Navegación Superior -->
+  <header class="navbar">
+    <div class="navbar-inner">
+      <div class="brand" (click)="cambiarVista('CATALOGO')">
+        <div class="brand-logo">☕</div>
+        <div>
+          <h1>Cafetería UTP</h1>
+          <span>Campus Mia Piura · Pedidos en línea</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <button
+          type="button"
+          class="nav-btn"
+          [class.active]="vistaActiva() === 'CATALOGO'"
+          (click)="cambiarVista('CATALOGO')"
+        >
+          🍔 Carta del Día
+        </button>
+
+        @if (estaAutenticado()) {
+          <button
+            type="button"
+            class="nav-btn"
+            [class.active]="vistaActiva() === 'MIS_PEDIDOS'"
+            (click)="cambiarVista('MIS_PEDIDOS')"
+          >
+            🧾 {{ esCafeteria() ? 'Historial Pedidos' : 'Mis Pedidos' }}
+          </button>
+        }
+
+        @if (esCafeteria()) {
+          <button
+            type="button"
+            class="nav-btn nav-btn-admin"
+            [class.active]="vistaActiva() === 'ADMIN'"
+            (click)="cambiarVista('ADMIN')"
+          >
+            ⚙️ Panel Cafetería
+          </button>
+        }
+      </nav>
+
+      <div class="nav-actions">
+        <button
+          type="button"
+          class="cart-trigger"
+          (click)="mostrarCarrito.set(true)"
+        >
+          <span>🛒</span>
+          <span class="cart-count">{{ totalItemsCarrito() }}</span>
+          <span class="cart-amount">S/ {{ totalMontoCarrito() | number: '1.2-2' }}</span>
+        </button>
+
+        @if (estaAutenticado(); as ok) {
+          <div class="user-pill">
+            <div class="user-meta">
+              <strong>{{ sesion()?.nombreCompleto || sesion()?.codigo }}</strong>
+              <span class="role-badge" [class.role-admin]="esCafeteria()">
+                {{ sesion()?.rol }}
+              </span>
+            </div>
+            <button type="button" class="btn-logout" (click)="cerrarSesion()">Salir</button>
+          </div>
+        } @else {
+          <button type="button" class="btn-primary" (click)="abrirModalLogin()">
+            Iniciar Sesión
+          </button>
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="main-container">
+    <!-- ==================== VISTA 1: CATÁLOGO ==================== -->
+    @if (vistaActiva() === 'CATALOGO') {
+      <section class="hero-banner">
+        <div class="hero-text">
+          <span class="hero-chip">✨ Atención sin colas · Campus UTP</span>
+          <h2>Pide desde tu celular o PC y recoge en barra</h2>
+          <p>
+            Elige tus sándwiches, antojitos, bebidas o postres favoritos y paga con Yape, Plin o
+            Tarjeta.
+          </p>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-box">
+            <strong>{{ productos().length }}</strong>
+            <span>Productos en carta</span>
+          </div>
+          <div class="stat-box">
+            <strong>Yape / Plin</strong>
+            <span>Pagos rápidos</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Barra de filtros y búsqueda -->
+      <section class="toolbar">
+        <div class="category-pills">
+          @for (cat of categorias; track cat) {
+            <button
+              type="button"
+              class="pill"
+              [class.active]="categoriaSeleccionada() === cat"
+              (click)="categoriaSeleccionada.set(cat)"
+            >
+              {{ cat === 'TODOS' ? '🍽️ Todos' : cat }}
+            </button>
+          }
+        </div>
+        <div class="search-box">
+          <input
+            type="text"
+            placeholder="Buscar pan con pollo, café, empanada..."
+            [ngModel]="busquedaProducto()"
+            (ngModelChange)="busquedaProducto.set($event)"
+          />
+        </div>
+      </section>
+
+      <!-- Grilla de Productos -->
+      <section class="product-grid">
+        @for (p of productosFiltrados(); track p.id) {
+          <article class="product-card" [class.product-disabled]="!p.disponible">
+            <div class="product-img-wrap">
+              <img
+                [src]="p.imagenUrl || imagenPorDefecto(p.categoria)"
+                [alt]="p.nombre"
+                loading="lazy"
+              />
+              <span class="category-tag">{{ p.categoria }}</span>
+              @if (!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)) {
+                <span class="stock-tag stock-out">Agotado</span>
+              } @else if (p.stock !== null && p.stock !== undefined) {
+                <span class="stock-tag">Stock: {{ p.stock }}</span>
+              }
+            </div>
+            <div class="product-body">
+              <div class="product-head">
+                <h3>{{ p.nombre }}</h3>
+                <span class="price">S/ {{ p.precio | number: '1.2-2' }}</span>
+              </div>
+              <p class="product-desc">{{ p.descripcion || 'Preparado al instante en cafetería.' }}</p>
+              <button
+                type="button"
+                class="btn-add"
+                [disabled]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+                (click)="agregarAlCarrito(p)"
+              >
+                {{ p.disponible ? '+ Agregar al pedido' : 'No disponible' }}
+              </button>
+            </div>
+          </article>
+        } @empty {
+          <div class="empty-state">
+            <h3>No encontramos productos con ese filtro</h3>
+            <p>Prueba seleccionando otra categoría o limpiando el buscador.</p>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ==================== VISTA 2: MIS PEDIDOS ==================== -->
+    @if (vistaActiva() === 'MIS_PEDIDOS') {
+      <section class="section-header">
+        <div>
+          <h2>🧾 Seguimiento de Pedidos</h2>
+          <p>Revisa el estado de preparación y recojo de tus pedidos en tiempo real.</p>
+        </div>
+        <button type="button" class="btn-outline" (click)="cargarPedidos()">
+          ↻ Actualizar estado
+        </button>
+      </section>
+
+      <div class="orders-list">
+        @for (ped of pedidosFiltrados(); track ped.id) {
+          <article class="order-card">
+            <div class="order-card-header">
+              <div>
+                <span class="order-code">{{ ped.codigo }}</span>
+                <span class="order-date">📅 {{ ped.fechaRegistro }}</span>
+                @if (ped.nombreCliente) {
+                  <span class="order-client">👤 {{ ped.nombreCliente }} ({{ ped.codigoCliente }})</span>
+                }
+              </div>
+              <div class="order-badges">
+                <span class="badge-status" [attr.data-status]="ped.estado">
+                  {{ ped.estado }}
+                </span>
+                <span class="badge-pay" [attr.data-pay]="ped.estadoPago">
+                  {{ ped.metodoPago }} · {{ ped.estadoPago }}
+                </span>
+              </div>
+            </div>
+
+            <div class="order-items">
+              @for (item of ped.items; track $index) {
+                <div class="order-item-row">
+                  <span><strong>{{ item.cantidad }}x</strong> {{ item.nombreProducto }}</span>
+                  <span>S/ {{ item.subtotal | number: '1.2-2' }}</span>
+                </div>
+              }
+            </div>
+
+            @if (ped.mensaje) {
+              <p class="order-note">💬 Nota: "{{ ped.mensaje }}"</p>
+            }
+
+            <div class="order-card-footer">
+              <div class="order-total">
+                Total: <strong>S/ {{ ped.total | number: '1.2-2' }}</strong>
+              </div>
+              @if (ped.estado === 'NUEVO') {
+                <button
+                  type="button"
+                  class="btn-danger-sm"
+                  (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                >
+                  Cancelar pedido
+                </button>
+              }
+            </div>
+          </article>
+        } @empty {
+          <div class="empty-state">
+            <h3>Aún no tienes pedidos registrados</h3>
+            <p>Explora la carta del día y realiza tu primer pedido.</p>
+            <button type="button" class="btn-primary" (click)="cambiarVista('CATALOGO')">
+              Ir a la Carta
+            </button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ==================== VISTA 3: PANEL CAFETERÍA (ADMIN) ==================== -->
+    @if (vistaActiva() === 'ADMIN' && esCafeteria()) {
+      <section class="admin-header">
+        <div>
+          <h2>⚙️ Panel de Control · Cafetería UTP</h2>
+          <p>Administración de pedidos en cocina, caja, catálogo de productos y usuarios.</p>
+        </div>
+
+        <div class="admin-tabs">
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="subVistaAdmin() === 'PEDIDOS'"
+            (click)="cambiarSubVistaAdmin('PEDIDOS')"
+          >
+            📋 Pedidos y Caja ({{ pedidos().length }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="subVistaAdmin() === 'PRODUCTOS'"
+            (click)="cambiarSubVistaAdmin('PRODUCTOS')"
+          >
+            🍔 Productos ({{ productos().length }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="subVistaAdmin() === 'USUARIOS'"
+            (click)="cambiarSubVistaAdmin('USUARIOS')"
+          >
+            👥 Usuarios
+          </button>
+        </div>
+      </section>
+
+      <!-- SUB-VISTA 3.1: GESTIÓN DE PEDIDOS Y RECAUDACIÓN -->
+      @if (subVistaAdmin() === 'PEDIDOS') {
+        <section class="kpi-grid">
+          <div class="kpi-card kpi-revenue">
+            <div class="kpi-top">
+              <span>💰 Recaudación (Entregados)</span>
+              <input
+                type="date"
+                [(ngModel)]="fechaRecaudacion"
+                (change)="consultarRecaudacion()"
+              />
+            </div>
+            <strong>S/ {{ totalRecaudadoDia() | number: '1.2-2' }}</strong>
+          </div>
+          <div class="kpi-card">
+            <span>🔔 Nuevos</span>
+            <strong>{{ resumenEstados().nuevos }}</strong>
+          </div>
+          <div class="kpi-card">
+            <span>🍳 En Preparación</span>
+            <strong>{{ resumenEstados().preparacion }}</strong>
+          </div>
+          <div class="kpi-card">
+            <span>✅ Listos para Entrega</span>
+            <strong>{{ resumenEstados().listos }}</strong>
+          </div>
+        </section>
+
+        <div class="toolbar">
+          <div class="category-pills">
+            @for (est of ['TODOS', 'NUEVO', 'EN_PREPARACION', 'LISTO', 'ENTREGADO', 'CANCELADO']; track est) {
+              <button
+                type="button"
+                class="pill"
+                [class.active]="filtroEstadoPedido() === est"
+                (click)="filtroEstadoPedido.set(est)"
+              >
+                {{ est }}
+              </button>
+            }
+          </div>
+          <button type="button" class="btn-outline" (click)="cargarPedidos(); consultarRecaudacion()">
+            ↻ Refrescar tablero
+          </button>
+        </div>
+
+        <div class="orders-list">
+          @for (ped of pedidosFiltrados(); track ped.id) {
+            <article class="order-card admin-order-card">
+              <div class="order-card-header">
+                <div>
+                  <span class="order-code">{{ ped.codigo }}</span>
+                  <span class="order-client">
+                    👤 {{ ped.nombreCliente || 'Cliente #' + ped.clienteId }}
+                    ({{ ped.codigoCliente || 'ID: ' + ped.clienteId }})
+                  </span>
+                  <span class="order-date">🕒 {{ ped.fechaRegistro }}</span>
+                </div>
+                <div class="order-badges">
+                  <span class="badge-status" [attr.data-status]="ped.estado">{{ ped.estado }}</span>
+                  <span class="badge-pay" [attr.data-pay]="ped.estadoPago">
+                    {{ ped.metodoPago }} · {{ ped.estadoPago }}
+                    @if (ped.referenciaPago) {
+                      (Ref: {{ ped.referenciaPago }})
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <div class="order-items">
+                @for (item of ped.items; track $index) {
+                  <div class="order-item-row">
+                    <span><strong>{{ item.cantidad }}x</strong> {{ item.nombreProducto }}</span>
+                    <span>S/ {{ item.subtotal | number: '1.2-2' }}</span>
+                  </div>
+                }
+              </div>
+
+              @if (ped.mensaje) {
+                <p class="order-note">💬 Nota del estudiante: "{{ ped.mensaje }}"</p>
+              }
+
+              <div class="admin-order-actions">
+                <div class="order-total">
+                  Total: <strong>S/ {{ ped.total | number: '1.2-2' }}</strong>
+                </div>
+
+                <div class="action-buttons">
+                  @if (ped.estadoPago !== 'PAGADO' && ped.estado !== 'CANCELADO') {
+                    <button
+                      type="button"
+                      class="btn-action btn-pay"
+                      (click)="actualizarEstadoPedido(ped, { estadoPago: 'PAGADO' })"
+                    >
+                      💳 Confirmar Pago
+                    </button>
+                  }
+                  @if (ped.estado === 'NUEVO') {
+                    <button
+                      type="button"
+                      class="btn-action btn-prep"
+                      (click)="actualizarEstadoPedido(ped, { estado: 'EN_PREPARACION' })"
+                    >
+                      🍳 En Preparación
+                    </button>
+                  }
+                  @if (ped.estado === 'NUEVO' || ped.estado === 'EN_PREPARACION') {
+                    <button
+                      type="button"
+                      class="btn-action btn-ready"
+                      (click)="actualizarEstadoPedido(ped, { estado: 'LISTO' })"
+                    >
+                      🔔 Marcar LISTO
+                    </button>
+                  }
+                  @if (ped.estado === 'LISTO') {
+                    <button
+                      type="button"
+                      class="btn-action btn-deliver"
+                      (click)="actualizarEstadoPedido(ped, { estado: 'ENTREGADO', estadoPago: 'PAGADO' })"
+                    >
+                      ✅ Entregar Pedido
+                    </button>
+                  }
+                  @if (ped.estado !== 'CANCELADO' && ped.estado !== 'ENTREGADO') {
+                    <button
+                      type="button"
+                      class="btn-danger-sm"
+                      (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                    >
+                      Cancelar
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="btn-icon-del"
+                    title="Eliminar registro"
+                    (click)="eliminarPedidoAdmin(ped)"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </article>
+          } @empty {
+            <div class="empty-state">
+              <h3>No hay pedidos en este estado</h3>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- SUB-VISTA 3.2: CRUD DE PRODUCTOS -->
+      @if (subVistaAdmin() === 'PRODUCTOS') {
+        <div class="admin-Subheader">
+          <h3>Catálogo de Productos</h3>
+          <button type="button" class="btn-primary" (click)="abrirModalNuevoProducto()">
+            + Nuevo Producto
+          </button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of productos(); track p.id) {
+                <tr>
+                  <td>#{{ p.id }}</td>
+                  <td>
+                    <div class="table-prod">
+                      <img [src]="p.imagenUrl || imagenPorDefecto(p.categoria)" [alt]="p.nombre" />
+                      <div>
+                        <strong>{{ p.nombre }}</strong>
+                        <small>{{ p.descripcion }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="category-tag-inline">{{ p.categoria }}</span></td>
+                  <td><strong>S/ {{ p.precio | number: '1.2-2' }}</strong></td>
+                  <td>{{ p.stock ?? 'Ilimitado' }}</td>
+                  <td>
+                    <span class="status-dot" [class.online]="p.disponible">
+                      {{ p.disponible ? 'Disponible' : 'Agotado' }}
+                    </span>
+                  </td>
+                  <td class="td-actions">
+                    <button type="button" class="btn-outline-sm" (click)="abrirModalEditarProducto(p)">
+                      Editar
+                    </button>
+                    <button type="button" class="btn-danger-sm" (click)="eliminarProductoAdmin(p)">
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <!-- SUB-VISTA 3.3: CRUD DE USUARIOS -->
+      @if (subVistaAdmin() === 'USUARIOS') {
+        <div class="admin-Subheader">
+          <h3>Usuarios Registrados</h3>
+          <button type="button" class="btn-primary" (click)="abrirModalNuevoUsuario()">
+            + Nuevo Usuario
+          </button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Código</th>
+                <th>Nombre Completo</th>
+                <th>Correo Institucional</th>
+                <th>Rol</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (u of usuarios(); track u.id) {
+                <tr>
+                  <td>#{{ u.id }}</td>
+                  <td><strong>{{ u.codigo }}</strong></td>
+                  <td>{{ u.nombreCompleto }}</td>
+                  <td>{{ u.correo }}</td>
+                  <td>
+                    <span class="role-badge" [class.role-admin]="u.rol === 'CAFETERIA'">
+                      {{ u.rol }}
+                    </span>
+                  </td>
+                  <td class="td-actions">
+                    <button type="button" class="btn-outline-sm" (click)="abrirModalEditarUsuario(u)">
+                      Editar
+                    </button>
+                    <button type="button" class="btn-danger-sm" (click)="eliminarUsuarioAdmin(u)">
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </main>
+
+  <!-- ==================== DRAWER LATERAL DEL CARRITO ==================== -->
+  @if (mostrarCarrito()) {
+    <div class="modal-backdrop" (click)="mostrarCarrito.set(false)">
+      <aside class="cart-drawer" (click)="$event.stopPropagation()">
+        <div class="drawer-header">
+          <h3>🛒 Tu Pedido Actual</h3>
+          <button type="button" class="btn-close" (click)="mostrarCarrito.set(false)">✕</button>
+        </div>
+
+        <div class="drawer-body">
+          @for (item of carrito(); track item.producto.id) {
+            <div class="cart-item">
+              <div class="cart-item-info">
+                <strong>{{ item.producto.nombre }}</strong>
+                <span>S/ {{ item.producto.precio | number: '1.2-2' }} c/u</span>
+              </div>
+              <div class="cart-qty">
+                <button type="button" (click)="cambiarCantidadCarrito(item.producto.id, -1)">−</button>
+                <span>{{ item.cantidad }}</span>
+                <button type="button" (click)="cambiarCantidadCarrito(item.producto.id, 1)">+</button>
+              </div>
+              <div class="cart-item-sub">
+                S/ {{ item.producto.precio * item.cantidad | number: '1.2-2' }}
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-cart">
+              <p>Aún no has agregado productos a tu pedido.</p>
+            </div>
+          }
+
+          @if (carrito().length > 0) {
+            <div class="checkout-form">
+              <h4>Método de Pago</h4>
+              <div class="payment-options">
+                @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
+                  <label class="pay-radio" [class.selected]="metodoPago === m">
+                    <input type="radio" name="metodoPago" [value]="m" [(ngModel)]="metodoPago" />
+                    {{ m }}
+                  </label>
+                }
+              </div>
+
+              <label class="field-label">
+                Código de operación / Referencia (opcional)
+                <input
+                  type="text"
+                  placeholder="Ej. Nro operación Yape/Plin: 849201"
+                  [(ngModel)]="referenciaPago"
+                />
+              </label>
+
+              <label class="field-label">
+                Indicaciones para cafetería (opcional)
+                <textarea
+                  rows="2"
+                  placeholder="Ej. Sin cremas, café sin azúcar..."
+                  [(ngModel)]="mensajePedido"
+                ></textarea>
+              </label>
+            </div>
+          }
+        </div>
+
+        <div class="drawer-footer">
+          <div class="drawer-total">
+            <span>Total a pagar</span>
+            <strong>S/ {{ totalMontoCarrito() | number: '1.2-2' }}</strong>
+          </div>
+          <button
+            type="button"
+            class="btn-primary btn-block"
+            [disabled]="carrito().length === 0 || cargando()"
+            (click)="confirmarPedido()"
+          >
+            {{ estaAutenticado() ? 'Confirmar y Enviar Pedido' : 'Iniciar Sesión para Pedir' }}
+          </button>
+        </div>
+      </aside>
+    </div>
+  }
+
+  <!-- ==================== MODAL DE LOGIN Y REGISTRO ==================== -->
+  @if (mostrarModalAuth()) {
+    <div class="modal-backdrop" (click)="mostrarModalAuth.set(false)">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="auth-tabs">
+            <button
+              type="button"
+              [class.active]="modoAuth() === 'LOGIN'"
+              (click)="modoAuth.set('LOGIN')"
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              [class.active]="modoAuth() === 'REGISTRO'"
+              (click)="modoAuth.set('REGISTRO')"
+            >
+              Crear Cuenta Estudiante
+            </button>
+          </div>
+          <button type="button" class="btn-close" (click)="mostrarModalAuth.set(false)">✕</button>
+        </div>
+
+        @if (modoAuth() === 'LOGIN') {
+          <form class="modal-body" (ngSubmit)="iniciarSesion()">
+            <label class="field-label">
+              Código UTP o Correo
+              <input
+                type="text"
+                name="identificador"
+                placeholder="Ej. U2303001 o ADMIN"
+                [(ngModel)]="loginIdentificador"
+                required
+              />
+            </label>
+            <label class="field-label">
+              Contraseña
+              <input
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                [(ngModel)]="loginPassword"
+                required
+              />
+            </label>
+
+            <div class="demo-box">
+              <span>Acceso rápido de prueba (Rol Cafetería):</span>
+              <button type="button" class="btn-outline-sm" (click)="autocompletarAdmin()">
+                Autocompletar ADMIN
+              </button>
+            </div>
+
+            <button type="submit" class="btn-primary btn-block" [disabled]="cargando()">
+              Ingresar a Cafetería UTP
+            </button>
+          </form>
+        } @else {
+          <form class="modal-body" (ngSubmit)="registrarEstudiante()">
+            <label class="field-label">
+              Código Universitario
+              <input
+                type="text"
+                name="regCodigo"
+                placeholder="Ej. U2410500"
+                [(ngModel)]="regCodigo"
+                required
+              />
+            </label>
+            <label class="field-label">
+              Nombre Completo
+              <input
+                type="text"
+                name="regNombre"
+                placeholder="Ej. María Fernanda López"
+                [(ngModel)]="regNombre"
+                required
+              />
+            </label>
+            <label class="field-label">
+              Correo Institucional
+              <input
+                type="email"
+                name="regCorreo"
+                placeholder="u2410500@utp.edu.pe"
+                [(ngModel)]="regCorreo"
+                required
+              />
+            </label>
+            <label class="field-label">
+              Contraseña (mínimo 8 caracteres)
+              <input
+                type="password"
+                name="regPassword"
+                placeholder="Mínimo 8 caracteres"
+                [(ngModel)]="regPassword"
+                required
+              />
+            </label>
+            <button type="submit" class="btn-primary btn-block" [disabled]="cargando()">
+              Registrarme e Ingresar
+            </button>
+          </form>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL ADMIN: PRODUCTO ==================== -->
+  @if (mostrarModalProducto()) {
+    <div class="modal-backdrop" (click)="mostrarModalProducto.set(false)">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>{{ productoEditandoId() ? 'Editar Producto' : 'Nuevo Producto' }}</h3>
+          <button type="button" class="btn-close" (click)="mostrarModalProducto.set(false)">✕</button>
+        </div>
+        <form class="modal-body" (ngSubmit)="guardarProductoAdmin()">
+          <label class="field-label">
+            Nombre del producto
+            <input type="text" name="prodNombre" [(ngModel)]="formProducto.nombre" required />
+          </label>
+          <div class="form-row">
+            <label class="field-label">
+              Categoría
+              <select name="prodCat" [(ngModel)]="formProducto.categoria">
+                <option value="SANDWICH">SANDWICH</option>
+                <option value="ANTOJITOS">ANTOJITOS</option>
+                <option value="BEBIDAS">BEBIDAS</option>
+                <option value="ENDULZATE">ENDULZATE</option>
+              </select>
+            </label>
+            <label class="field-label">
+              Precio (S/)
+              <input
+                type="number"
+                step="0.50"
+                name="prodPrecio"
+                [(ngModel)]="formProducto.precio"
+                required
+              />
+            </label>
+            <label class="field-label">
+              Stock
+              <input type="number" name="prodStock" [(ngModel)]="formProducto.stock" />
+            </label>
+          </div>
+          <label class="field-label">
+            Descripción
+            <textarea rows="2" name="prodDesc" [(ngModel)]="formProducto.descripcion"></textarea>
+          </label>
+          <label class="field-label">
+            URL de Imagen (opcional)
+            <input
+              type="text"
+              name="prodImg"
+              placeholder="https://images.unsplash.com/..."
+              [(ngModel)]="formProducto.imagenUrl"
+            />
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="prodDisp" [(ngModel)]="formProducto.disponible" />
+            Producto disponible para la venta
+          </label>
+          <button type="submit" class="btn-primary btn-block">Guardar Producto</button>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL ADMIN: USUARIO ==================== -->
+  @if (mostrarModalUsuario()) {
+    <div class="modal-backdrop" (click)="mostrarModalUsuario.set(false)">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>{{ usuarioEditandoId() ? 'Editar Usuario' : 'Nuevo Usuario' }}</h3>
+          <button type="button" class="btn-close" (click)="mostrarModalUsuario.set(false)">✕</button>
+        </div>
+        <form class="modal-body" (ngSubmit)="guardarUsuarioAdmin()">
+          <div class="form-row">
+            <label class="field-label">
+              Código
+              <input type="text" name="usuCodigo" [(ngModel)]="formUsuario.codigo" required />
+            </label>
+            <label class="field-label">
+              Rol
+              <select name="usuRol" [(ngModel)]="formUsuario.rol">
+                <option value="ESTUDIANTE">ESTUDIANTE</option>
+                <option value="CAFETERIA">CAFETERIA</option>
+              </select>
+            </label>
+          </div>
+          <label class="field-label">
+            Nombre Completo
+            <input type="text" name="usuNombre" [(ngModel)]="formUsuario.nombreCompleto" required />
+          </label>
+          <label class="field-label">
+            Correo Electrónico
+            <input type="email" name="usuCorreo" [(ngModel)]="formUsuario.correo" required />
+          </label>
+          <label class="field-label">
+            {{ usuarioEditandoId() ? 'Nueva Contraseña (dejar vacío para mantener)' : 'Contraseña (mín. 8 caracteres)' }}
+            <input type="password" name="usuPass" [(ngModel)]="formUsuario.password" />
+          </label>
+          <button type="submit" class="btn-primary btn-block">Guardar Usuario</button>
+        </form>
+      </div>
+    </div>
+  }
+</div>
