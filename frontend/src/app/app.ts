@@ -220,6 +220,11 @@ export class App implements OnInit {
     this.loginPassword = 'CafeAdmin2026';
   }
 
+  autocompletarEstudiante(): void {
+    this.loginIdentificador = 'U2303001';
+    this.loginPassword = 'CafeAdmin2026';
+  }
+
   iniciarSesion(): void {
     if (!this.loginIdentificador.trim() || !this.loginPassword.trim()) {
       this.mostrarMensaje('error', 'Ingresa tu código/correo y contraseña');
