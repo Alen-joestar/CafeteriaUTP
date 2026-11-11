@@ -7,6 +7,8 @@ import org.springframework.data.repository.query.Param;
 import com.utp.cafeteria.model.Usuario;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+    Optional<Usuario> findByCodigo(String codigo);
+
     @Query("select u from Usuario u where lower(u.codigo) = lower(:identificador) or lower(u.correo) = lower(:identificador)")
     Optional<Usuario> buscarPorIdentificador(@Param("identificador") String identificador);
 }
