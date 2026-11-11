@@ -29,17 +29,23 @@ Backend REST con Spring Boot, Spring Data JPA y MySQL/MariaDB. Está preparado p
 
 ## Autenticación y permisos
 
-`POST /api/auth/login` acepta `identificador` (código o correo) y `password`. Devuelve un JWT Bearer con expiración de una hora. Envía `Authorization: Bearer <token>` a las rutas protegidas.
+- `POST /api/auth/login` acepta `identificador` (código o correo) y `password`. Devuelve un JWT Bearer con expiración de una hora junto con los datos del usuario (`usuarioId`, `codigo`, `correo`, `nombreCompleto`, `rol`).
+- `POST /api/auth/registro` permite el registro público de nuevos usuarios con rol `ESTUDIANTE`.
+- `GET /api/auth/me` devuelve el perfil del usuario autenticado.
+- Envía `Authorization: Bearer <token>` a las rutas protegidas.
 
-- `ESTUDIANTE`: puede crear pedidos y consultar únicamente los propios.
-- `CAFETERIA`: administra usuarios y productos, y puede consultar, actualizar y eliminar pedidos.
+- `ESTUDIANTE`: puede crear pedidos, consultar únicamente los propios y cancelar un pedido propio mientras esté en estado `NUEVO`.
+- `CAFETERIA`: administra usuarios y productos, consulta/actualiza/elimina pedidos y consulta el reporte de recaudación diaria.
 - `GET /api/productos` y `GET /api/productos/{id}` son públicos.
 
-## Rutas CRUD
+## Rutas principales y Documentación Swagger
 
+- **Swagger UI / OpenAPI:** Disponible en `http://localhost:8080/swagger-ui.html` y especificación JSON en `http://localhost:8080/v3/api-docs`.
 - `/api/usuarios`: CRUD, protegido con rol `CAFETERIA`.
-- `/api/productos`: CRUD; lecturas públicas y cambios con rol `CAFETERIA`. Filtros opcionales: `categoria`, `disponible`.
-- `/api/pedidos`: CRUD autenticado; `estado` y `clienteId` filtran la colección. Los estudiantes quedan limitados a su propio `clienteId`.
+- `/api/productos`: CRUD; lecturas públicas y cambios con rol `CAFETERIA` (incluye control de `stock` e `imagenUrl`). Filtros opcionales: `categoria`, `disponible`.
+- `/api/pedidos`: CRUD autenticado; `estado` y `clienteId` filtran la colección.
+- `PATCH /api/pedidos/{id}/estado`: actualización rápida de `estado` (`NUEVO`, `EN_PREPARACION`, `LISTO`, `ENTREGADO`, `CANCELADO`) y `estadoPago` (`PENDIENTE`, `PAGADO`, `RECHAZADO`).
+- `GET /api/pedidos/recaudacion`: reporte de ingresos por fecha (`?fecha=YYYY-MM-DD`) para rol `CAFETERIA`.
 
 Los pedidos reciben `productoId` y `cantidad`; el precio y subtotal se obtienen/calculan desde MySQL. El pago admite `TARJETA`, `YAPE` y `PLIN`. La implementación local usa un puerto `PasarelaPago` con adaptador pendiente: deja el pago como `PENDIENTE` y no realiza cobros reales.
 
