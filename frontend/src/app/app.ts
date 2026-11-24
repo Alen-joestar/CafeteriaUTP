@@ -43,19 +43,16 @@ export class App implements OnInit, OnDestroy {
     return base.substring(0, 2).toUpperCase();
   });
 
-  // Modal Auth + SSO Institucional @utp.edu.pe
+  // Modal Auth
   mostrarModalAuth = signal(false);
   mostrarAccesoRapido = signal(false);
-  modoAuth = signal<'LOGIN' | 'REGISTRO' | 'SSO'>('LOGIN');
+  modoAuth = signal<'LOGIN' | 'REGISTRO'>('LOGIN');
   loginIdentificador = '';
   loginPassword = '';
   regCodigo = '';
   regCorreo = '';
   regNombre = '';
   regPassword = '';
-  ssoCorreo = '';
-  ssoPassword = '';
-  ssoNombre = '';
 
   // Notificaciones Toast y Audio en Tiempo Real
   notificacion = signal<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
@@ -363,7 +360,7 @@ export class App implements OnInit, OnDestroy {
     }
   }
 
-  // ================= AUTH + SSO INSTITUCIONAL SIMULADO =================
+  // ================= AUTH =================
   abrirModalLogin(): void {
     this.modoAuth.set('LOGIN');
     this.mostrarModalAuth.set(true);
@@ -377,6 +374,12 @@ export class App implements OnInit, OnDestroy {
   autocompletarEstudiante(): void {
     this.loginIdentificador = 'U2303001';
     this.loginPassword = 'CafeAdmin2026';
+  }
+
+  actualizarCodigoRegistro(codigo: string): void {
+    this.regCodigo = codigo;
+    const limpio = codigo.trim().toLowerCase();
+    this.regCorreo = limpio ? `${limpio}@utp.edu.pe` : '';
   }
 
   iniciarSesion(): void {
@@ -396,46 +399,13 @@ export class App implements OnInit, OnDestroy {
     });
   }
 
-  iniciarSesionSsoUtp(): void {
-    const correo = this.ssoCorreo.trim().toLowerCase();
-    if (!correo.endsWith('@utp.edu.pe')) {
-      this.mostrarMensaje('error', 'Usa un correo institucional válido terminado en @utp.edu.pe');
-      return;
-    }
-    if (!this.ssoPassword || this.ssoPassword.length < 8) {
-      this.mostrarMensaje('error', 'Ingresa tu contraseña institucional (mínimo 8 caracteres)');
-      return;
-    }
-    this.cargando.set(true);
-    this.api
-      .loginSsoInstitucional(correo, this.ssoPassword, this.ssoNombre.trim())
-      .subscribe({
-        next: (resp) => {
-          this.ssoPassword = '';
-          this.completarInicioSesion(resp, 'Cuenta institucional @utp.edu.pe autenticada');
-        },
-        error: (err) => {
-          this.cargando.set(false);
-          this.mostrarMensaje(
-            'error',
-            err?.error?.error || 'Credenciales institucionales incorrectas'
-          );
-        }
-      });
-  }
-
-  private completarInicioSesion(resp: LoginResponse, prefijo?: string): void {
+  private completarInicioSesion(resp: LoginResponse): void {
     localStorage.setItem('cafeteria_session', JSON.stringify(resp));
     this.sesion.set(resp);
     this.mostrarModalAuth.set(false);
     this.loginPassword = '';
     this.cargando.set(false);
-    this.mostrarMensaje(
-      'exito',
-      prefijo
-        ? `${prefijo}: Bienvenido(a), ${resp.nombreCompleto || resp.codigo}`
-        : `¡Bienvenido(a), ${resp.nombreCompleto || resp.codigo}!`
-    );
+    this.mostrarMensaje('exito', `¡Bienvenido(a), ${resp.nombreCompleto || resp.codigo}!`);
     this.cargarPedidos(true);
     if (resp.rol === 'CAFETERIA') {
       this.consultarRecaudacion();

@@ -147,7 +147,7 @@
               <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" />
               <circle cx="16.5" cy="7.5" r=".5" />
             </svg>
-            <span>Ingresar / SSO UTP</span>
+            <span>Ingresar / Registrarse</span>
           </button>
         </div>
       }
@@ -1447,7 +1447,7 @@
     </div>
   }
 
-  <!-- ==================== MODAL LOGIN / REGISTRO / SSO INSTITUCIONAL @utp.edu.pe ==================== -->
+  <!-- ==================== MODAL LOGIN / REGISTRO ==================== -->
   @if (mostrarModalAuth()) {
     <div class="modal-overlay" (click)="mostrarModalAuth.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
@@ -1463,18 +1463,10 @@
           <button
             type="button"
             class="tab-arc-btn"
-            [class.active]="modoAuth() === 'SSO'"
-            (click)="modoAuth.set('SSO')"
-          >
-            SSO @utp.edu.pe
-          </button>
-          <button
-            type="button"
-            class="tab-arc-btn"
             [class.active]="modoAuth() === 'REGISTRO'"
             (click)="modoAuth.set('REGISTRO')"
           >
-            Crear Cuenta
+            Crear Cuenta Estudiante
           </button>
         </div>
 
@@ -1535,68 +1527,11 @@
               </button>
             </div>
           </form>
-        } @else if (modoAuth() === 'SSO') {
-          <form (ngSubmit)="iniciarSesionSsoUtp()">
-            <span class="arch-hero-tag" style="background: var(--ink); margin-bottom: 8px;">
-              MICROSOFT 365 · IDENTIDAD INSTITUCIONAL UTP
-            </span>
-            <h3 style="margin-bottom: 6px;">Portal Institucional @utp.edu.pe</h3>
-            <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 14px;">
-              Inicia sesión con tus credenciales institucionales de la Universidad Tecnológica del
-              Perú. Si es tu primer ingreso, tu cuenta quedará vinculada con esta contraseña.
-            </p>
-
-            <div class="field-group">
-              <label>Correo Institucional (@utp.edu.pe)</label>
-              <input
-                type="email"
-                name="ssoCorreo"
-                placeholder="u2303001@utp.edu.pe"
-                [(ngModel)]="ssoCorreo"
-                required
-              />
-            </div>
-
-            <div class="field-group">
-              <label>Contraseña Institucional</label>
-              <input
-                type="password"
-                name="ssoPassword"
-                placeholder="••••••••"
-                [(ngModel)]="ssoPassword"
-                required
-              />
-            </div>
-
-            <div class="field-group">
-              <label>Nombre Completo (solo si es tu primer ingreso)</label>
-              <input
-                type="text"
-                name="ssoNombre"
-                placeholder="Ej. Carlos Pérez"
-                [(ngModel)]="ssoNombre"
-              />
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 16px;">
-              <button
-                type="submit"
-                class="btn-emitir"
-                style="background: var(--green);"
-                [disabled]="cargando()"
-              >
-                AUTENTICAR CON CUENTA @utp.edu.pe
-              </button>
-              <button type="button" class="tab-arc-btn" (click)="mostrarModalAuth.set(false)">
-                Cerrar
-              </button>
-            </div>
-          </form>
         } @else {
           <form (ngSubmit)="registrarEstudiante()">
             <h3 style="margin-bottom: 6px;">Registro de Estudiante UTP</h3>
             <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
-              Crea tu cuenta para emitir órdenes digitales sin hacer cola.
+              Crea tu cuenta con tu código UTP; tu correo institucional se generará automáticamente.
             </p>
 
             <div class="field-group">
@@ -1605,7 +1540,8 @@
                 type="text"
                 name="regCodigo"
                 placeholder="Ej. U2410500"
-                [(ngModel)]="regCodigo"
+                [ngModel]="regCodigo"
+                (ngModelChange)="actualizarCodigoRegistro($event)"
                 required
               />
             </div>
@@ -1622,12 +1558,14 @@
             </div>
 
             <div class="field-group">
-              <label>Correo Institucional</label>
+              <label>Correo Institucional (Autogenerado)</label>
               <input
                 type="email"
                 name="regCorreo"
                 placeholder="u2410500@utp.edu.pe"
                 [(ngModel)]="regCorreo"
+                readonly
+                style="background: var(--bg-warm); color: var(--muted);"
                 required
               />
             </div>
