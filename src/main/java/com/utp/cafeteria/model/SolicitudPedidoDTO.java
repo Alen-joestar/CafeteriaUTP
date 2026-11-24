@@ -9,6 +9,9 @@ public class SolicitudPedidoDTO {
     private String metodoPago;
     private String referenciaPago;
     private String estado;
+    private String horarioRecojo;
+    private String cremasYExtras;
+    private Double montoExtras;
 
     public SolicitudPedidoDTO() {
     }
@@ -68,5 +71,29 @@ public class SolicitudPedidoDTO {
 
     public void setEstado(String estado) {
         this.estado = estado;
+    }
+
+    public String getHorarioRecojo() {
+        return horarioRecojo;
+    }
+
+    public void setHorarioRecojo(String horarioRecojo) {
+        this.horarioRecojo = horarioRecojo;
+    }
+
+    public String getCremasYExtras() {
+        return cremasYExtras;
+    }
+
+    public void setCremasYExtras(String cremasYExtras) {
+        this.cremasYExtras = cremasYExtras;
+    }
+
+    public Double getMontoExtras() {
+        return montoExtras;
+    }
+
+    public void setMontoExtras(Double montoExtras) {
+        this.montoExtras = montoExtras;
     }
 }

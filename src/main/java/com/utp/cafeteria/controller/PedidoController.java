@@ -42,14 +42,33 @@ public class PedidoController {
         return service.listar(estado, esCafeteria(authentication) ? clienteId : usuarioId(authentication));
     }
 
+    @GetMapping("/monitor-barra")
+    public List<Map<String, Object>> monitorBarraPublico() {
+        return service.listar("LISTO", null).stream()
+                .map(p -> {
+                    Map<String, Object> item = new java.util.LinkedHashMap<>();
+                    item.put("id", p.getId());
+                    item.put("codigo", p.getCodigo());
+                    item.put("nombreCliente", p.getNombreCliente() != null ? p.getNombreCliente() : "Estudiante");
+                    item.put("codigoCliente", p.getCodigoCliente() != null ? p.getCodigoCliente() : "");
+                    item.put("horarioRecojo", p.getHorarioRecojo() != null ? p.getHorarioRecojo() : "INMEDIATO");
+                    return item;
+                })
+                .toList();
+    }
+
     @GetMapping("/recaudacion")
     public ResponseEntity<Map<String, Object>> recaudacion(
             @RequestParam(required = false) String fecha) {
         String fechaConsulta = (fecha == null || fecha.isBlank()) ? LocalDate.now().toString() : fecha.trim();
-        Double totalRecaudado = service.recaudacionPorFecha(fechaConsulta);
-        return ResponseEntity.ok(Map.of(
-                "fecha", fechaConsulta,
-                "totalRecaudado", totalRecaudado != null ? totalRecaudado : 0.0));
+        return ResponseEntity.ok(service.arqueoPorFecha(fechaConsulta));
+    }
+
+    @PostMapping("/validar-entrega")
+    public ResponseEntity<Pedido> validarEntrega(@RequestBody Map<String, String> body) {
+        String codigoOPin = body.getOrDefault("codigoOPin", "");
+        Pedido entregado = service.validarEntregaPorPinOCodigo(codigoOPin);
+        return ResponseEntity.ok(entregado);
     }
 
     @GetMapping("/{id:[0-9]+}")
@@ -68,6 +87,18 @@ public class PedidoController {
             dto.setClienteId(usuarioId(authentication));
         Pedido creado = service.crearPedido(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
+    }
+
+    @PatchMapping("/{id:[0-9]+}/calificar")
+    public ResponseEntity<Pedido> calificar(@PathVariable Long id,
+            @RequestBody Map<String, Integer> body, Authentication authentication) {
+        Integer estrellas = body.get("calificacion");
+        Long uid = esCafeteria(authentication) ? null : usuarioId(authentication);
+        Pedido calificado = service.calificarPedido(id, estrellas, uid);
+        if (calificado == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(calificado);
     }
 
     @PatchMapping("/{id:[0-9]+}/estado")

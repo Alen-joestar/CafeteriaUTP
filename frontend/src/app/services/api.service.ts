@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+  ArqueoCajaResponse,
   LoginResponse,
   Pedido,
   Producto,
@@ -53,6 +54,14 @@ export class ApiService {
   }
 
   // Pedidos
+  listarMonitorBarra(): Observable<
+    { id: number; codigo: string; nombreCliente: string; codigoCliente: string; horarioRecojo: string }[]
+  > {
+    return this.http.get<
+      { id: number; codigo: string; nombreCliente: string; codigoCliente: string; horarioRecojo: string }[]
+    >(`${this.baseUrl}/pedidos/monitor-barra`);
+  }
+
   listarPedidos(estado?: string): Observable<Pedido[]> {
     let params = new HttpParams();
     if (estado && estado !== 'TODOS') {
@@ -67,21 +76,29 @@ export class ApiService {
 
   cambiarEstadoPedido(
     id: number,
-    cambios: { estado?: string; estadoPago?: string }
+    cambios: { estado?: string; estadoPago?: string; motivoCancelacion?: string }
   ): Observable<Pedido> {
     return this.http.patch<Pedido>(`${this.baseUrl}/pedidos/${id}/estado`, cambios);
+  }
+
+  calificarPedido(id: number, calificacion: number): Observable<Pedido> {
+    return this.http.patch<Pedido>(`${this.baseUrl}/pedidos/${id}/calificar`, { calificacion });
+  }
+
+  validarEntregaPorPinOCodigo(codigoOPin: string): Observable<Pedido> {
+    return this.http.post<Pedido>(`${this.baseUrl}/pedidos/validar-entrega`, { codigoOPin });
   }
 
   eliminarPedido(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/pedidos/${id}`);
   }
 
-  obtenerRecaudacion(fecha?: string): Observable<{ fecha: string; totalRecaudado: number }> {
+  obtenerRecaudacion(fecha?: string): Observable<ArqueoCajaResponse> {
     let params = new HttpParams();
     if (fecha) {
       params = params.set('fecha', fecha);
     }
-    return this.http.get<{ fecha: string; totalRecaudado: number }>(
+    return this.http.get<ArqueoCajaResponse>(
       `${this.baseUrl}/pedidos/recaudacion`,
       { params }
     );

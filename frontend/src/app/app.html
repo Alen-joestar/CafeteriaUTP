@@ -67,23 +67,25 @@
           <span class="nav-count">{{ productos().length }}</span>
         </button>
 
-        <button
-          type="button"
-          class="nav-ticket-btn"
-          [class.active]="vistaActiva() === 'MIS_PEDIDOS'"
-          (click)="cambiarVista('MIS_PEDIDOS')"
-        >
-          <span class="nav-btn-left">
-            <svg class="icon-sm" viewBox="0 0 24 24">
-              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-              <path d="M13 5v2" />
-              <path d="M13 17v2" />
-              <path d="M13 11v2" />
-            </svg>
-            <span>02 / MIS PEDIDOS</span>
-          </span>
-          <span class="nav-count">{{ pedidos().length }}</span>
-        </button>
+        @if (!esCafeteria()) {
+          <button
+            type="button"
+            class="nav-ticket-btn"
+            [class.active]="vistaActiva() === 'MIS_PEDIDOS'"
+            (click)="cambiarVista('MIS_PEDIDOS')"
+          >
+            <span class="nav-btn-left">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                <path d="M13 5v2" />
+                <path d="M13 17v2" />
+                <path d="M13 11v2" />
+              </svg>
+              <span>02 / MIS PEDIDOS</span>
+            </span>
+            <span class="nav-count" title="Boletos activos en curso">{{ pedidosEnCurso().length }}</span>
+          </button>
+        }
 
         @if (esCafeteria()) {
           <button
@@ -99,9 +101,9 @@
                 <rect width="7" height="9" x="14" y="12" rx="1" />
                 <rect width="7" height="5" x="3" y="16" rx="1" />
               </svg>
-              <span>03 / CAJA & COCINA</span>
+              <span>02 / CAJA & COCINA</span>
             </span>
-            <span class="nav-count">ADMIN</span>
+            <span class="nav-count">{{ pedidosEnCurso().length }}</span>
           </button>
         }
       </nav>
@@ -156,7 +158,7 @@
 
   <!-- ==================== COLUMNA 2: ESCENARIO CENTRAL ==================== -->
   <main class="center-stage">
-    <!-- Monitor de Pedidos Listos en Barra (En Vivo) -->
+    <!-- Monitor de Pedidos Listos en Barra (En Vivo + Campana Sonora) -->
     <div class="barra-monitor">
       <div class="barra-label">
         <span class="pulse-dot"></span>
@@ -166,22 +168,36 @@
           <path d="M4 2C2.8 3.7 2 5.7 2 8" />
           <path d="M22 8c0-2.3-.8-4.3-2-6" />
         </svg>
-        <span>LISTOS EN BARRA PARA RECOGER:</span>
+        <span>LISTOS EN BARRA PARA RECOGER (EN VIVO):</span>
       </div>
-      <div class="ready-pills">
+      <div class="ready-pills" style="align-items: center;">
         @for (listo of pedidosListosEnBarra(); track listo.id) {
-          <span class="ready-code">
+          <span class="ready-code" (click)="pedidoQrActiva.set(listo)" style="cursor: pointer;" title="Ver QR de recojo">
             <svg class="icon-sm" viewBox="0 0 24 24">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <path d="m9 11 3 3L22 4" />
             </svg>
-            <span>{{ listo.codigo }} ({{ listo.nombreCliente || listo.codigoCliente || 'Cliente' }})</span>
+            <span>
+              {{ listo.codigo }} ({{ listo.nombreCliente || listo.codigoCliente || 'Cliente' }})
+              @if (listo.pinEntrega) {
+                · PIN {{ listo.pinEntrega }}
+              }
+            </span>
           </span>
         } @empty {
           <span class="font-mono" style="font-size: 0.74rem; color: var(--muted);">
             Ningún pedido pendiente en barra
           </span>
         }
+        <button
+          type="button"
+          class="chip-mini"
+          [class.active]="alertasSonorasActivas()"
+          (click)="alertasSonorasActivas.set(!alertasSonorasActivas()); reproducirCampanaSonora('listo')"
+          title="Activar/Desactivar alerta sonora de barra"
+        >
+          {{ alertasSonorasActivas() ? 'Campana ON' : 'Campana OFF' }}
+        </button>
       </div>
     </div>
 
@@ -194,17 +210,17 @@
               <svg class="icon-sm" viewBox="0 0 24 24">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
-              <span>ATENCIÓN UNIVERSITARIA SIN COLAS</span>
+              <span>ATENCIÓN UNIVERSITARIA SIN COLAS · UTP PAY & QR</span>
             </span>
             <h2>Platos recién hechos, directo a tu ticket digital.</h2>
             <p>
-              Selecciona tus sándwiches, antojitos, bebidas o postres. Tu orden genera un boleto
-              único para recoger en barra.
+              Selecciona tus platos, personaliza tus cremas, programa tu hora de recreo y recoge en
+              barra presentando tu código QR o PIN de seguridad.
             </p>
           </div>
-          <div class="hero-circle-stat">
-            <strong>~5m</strong>
-            <span>ENTREGA EN BARRA</span>
+          <div class="hero-circle-stat" title="Calculado en vivo según la cola actual en cocina">
+            <strong>~{{ tiempoEstimadoMinutos() }}m</strong>
+            <span>TIEMPO EN BARRA</span>
           </div>
         </div>
 
@@ -268,9 +284,12 @@
               <span
                 class="stock-orb"
                 [class.out]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+                [class.low]="p.disponible && p.stock !== null && p.stock !== undefined && p.stock > 0 && p.stock <= 5"
               >
                 @if (!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)) {
                   AGOTADO
+                } @else if (p.stock !== null && p.stock !== undefined && p.stock <= 5) {
+                  ¡ÚLTIMOS {{ p.stock }}!
                 } @else {
                   STOCK {{ p.stock ?? '∞' }}
                 }
@@ -290,24 +309,34 @@
 
               <div class="dome-footer">
                 <span class="price-mono">S/ {{ p.precio | number: '1.2-2' }}</span>
-                <button
-                  type="button"
-                  class="btn-add-dome"
-                  [disabled]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
-                  (click)="agregarAlCarrito(p)"
-                >
-                  <svg class="icon-sm" viewBox="0 0 24 24">
-                    <path d="M5 12h14" />
-                    <path d="M12 5v14" />
-                  </svg>
-                  <span>
-                    {{
-                      !p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)
-                        ? 'Sin Stock'
-                        : 'Al Ticket'
-                    }}
-                  </span>
-                </button>
+                @if (esCafeteria()) {
+                  <button
+                    type="button"
+                    class="btn-add-dome"
+                    (click)="abrirModalEditarProducto(p)"
+                  >
+                    <span>Editar Plato</span>
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn-add-dome"
+                    [disabled]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+                    (click)="agregarAlCarrito(p)"
+                  >
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <path d="M5 12h14" />
+                      <path d="M12 5v14" />
+                    </svg>
+                    <span>
+                      {{
+                        !p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)
+                          ? 'Sin Stock'
+                          : 'Al Ticket'
+                      }}
+                    </span>
+                  </button>
+                }
               </div>
             </article>
           } @empty {
@@ -325,46 +354,85 @@
       </section>
     }
 
-    <!-- ==================== VISTA 02: MIS PEDIDOS (STEPPER INTERACTIVO) ==================== -->
+    <!-- ==================== VISTA 02: MIS PEDIDOS (STEPPER + QR + PIN + BOLETA SUNAT) ==================== -->
     @if (vistaActiva() === 'MIS_PEDIDOS') {
       <section>
         <div
           style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;"
         >
           <div>
-            <h2 style="font-size: 1.7rem;">02 / Boletos de Pedido & Seguimiento</h2>
+            <h2 style="font-size: 1.7rem;">02 / Boletos Digitales, QR de Barra & Seguimiento</h2>
             <p style="color: var(--muted); font-size: 0.88rem;">
-              Sigue en tiempo real las 4 etapas de preparación de tu orden.
+              Tus boletos activos aparecen en "En Curso". Las órdenes entregadas o canceladas se archivan en Historial.
             </p>
           </div>
-          <button type="button" class="tab-arc-btn" (click)="cargarPedidos()">
-            <svg class="icon-sm" viewBox="0 0 24 24">
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-              <path d="M16 16h5v5" />
-            </svg>
-            <span>Actualizar Estado</span>
-          </button>
+          <div class="admin-subtabs">
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaMisPedidos() === 'EN_CURSO'"
+              (click)="subVistaMisPedidos.set('EN_CURSO')"
+            >
+              <span>En Curso ({{ pedidosEnCurso().length }})</span>
+            </button>
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaMisPedidos() === 'HISTORIAL'"
+              (click)="subVistaMisPedidos.set('HISTORIAL')"
+            >
+              <span>Historial y Cancelados ({{ pedidosHistorial().length }})</span>
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="cargarPedidos(true)">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
+              </svg>
+              <span>Sincronizar</span>
+            </button>
+          </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 18px;">
-          @for (ped of pedidosFiltrados(); track ped.id) {
+          @for (ped of misPedidosVisibles(); track ped.id) {
             <article class="ticket-order-card">
               <div
-                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"
+                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;"
               >
-                <div>
-                  <span class="font-mono" style="font-size: 1.1rem; font-weight: 700;">
-                    BOLETO #{{ ped.codigo }}
-                  </span>
-                  <span class="font-mono" style="font-size: 0.76rem; color: var(--muted); margin-left: 10px;">
-                    {{ ped.fechaRegistro }}
-                    @if (ped.nombreCliente) {
-                      · {{ ped.nombreCliente }} ({{ ped.codigoCliente }})
+                <div style="display: flex; align-items: center; gap: 14px;">
+                  <!-- Mini Código QR Vectorial Único del Boleto -->
+                  <div
+                    class="qr-mini-box"
+                    style="cursor: pointer;"
+                    title="Clic para ampliar QR de entrega en barra"
+                    (click)="pedidoQrActiva.set(ped)"
+                  >
+                    @for (bit of generarMatrizQr(ped.codigo + (ped.pinEntrega || '')); track $index) {
+                      <span class="qr-cell" [class.filled]="bit"></span>
                     }
-                  </span>
+                  </div>
+                  <div>
+                    <span class="font-mono" style="font-size: 1.1rem; font-weight: 700;">
+                      BOLETO #{{ ped.codigo }}
+                    </span>
+                    <span
+                      class="ready-code"
+                      style="background: #FDE047; color: var(--ink); margin-left: 8px; font-size: 0.72rem;"
+                    >
+                      PIN BARRA: {{ ped.pinEntrega || '2026' }}
+                    </span>
+                    <div class="font-mono" style="font-size: 0.74rem; color: var(--muted); margin-top: 3px;">
+                      {{ ped.fechaRegistro }}
+                      · Recojo: <strong>{{ ped.horarioRecojo || 'INMEDIATO' }}</strong>
+                      @if (ped.nombreCliente) {
+                        · {{ ped.nombreCliente }} ({{ ped.codigoCliente }})
+                      }
+                    </div>
+                  </div>
                 </div>
+
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <span class="ready-code" style="background: var(--ink);">
                     {{ ped.metodoPago }} · {{ ped.estadoPago }}
@@ -426,8 +494,11 @@
                   </div>
                 </div>
               } @else {
-                <p class="font-mono" style="color: var(--utp-red); margin: 14px 0;">
+                <p class="font-mono" style="color: var(--utp-red); margin: 14px 0 8px;">
                   [ ORDEN CANCELADA ]
+                  @if (ped.motivoCancelacion) {
+                    · Motivo: {{ ped.motivoCancelacion }}
+                  }
                 </p>
               }
 
@@ -438,7 +509,19 @@
                     <strong>S/ {{ item.subtotal | number: '1.2-2' }}</strong>
                   </div>
                 }
+                @if (ped.montoExtras && ped.montoExtras > 0) {
+                  <div class="receipt-row" style="color: var(--utp-red);">
+                    <span><strong>+ Adicionales / Extras</strong></span>
+                    <strong>S/ {{ ped.montoExtras | number: '1.2-2' }}</strong>
+                  </div>
+                }
               </div>
+
+              @if (ped.cremasYExtras) {
+                <p class="font-mono" style="font-size: 0.74rem; color: var(--ink); background: #F5F2EB; padding: 6px 10px; margin-bottom: 6px;">
+                  Personalización: {{ ped.cremasYExtras }}
+                </p>
+              }
 
               @if (ped.mensaje) {
                 <p class="font-mono" style="font-size: 0.75rem; color: var(--muted); margin-bottom: 10px;">
@@ -446,35 +529,114 @@
                 </p>
               }
 
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; flex-wrap: wrap; gap: 10px;">
                 <strong class="font-mono" style="font-size: 1.02rem;">
                   TOTAL: S/ {{ ped.total | number: '1.2-2' }}
+                  @if (ped.referenciaPago) {
+                    <small style="color: var(--muted); font-size: 0.72rem; margin-left: 6px;">
+                      (Ref: {{ ped.referenciaPago }})
+                    </small>
+                  }
                 </strong>
-                @if (ped.estado === 'NUEVO') {
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                  @if (ped.estado === 'ENTREGADO') {
+                    <div style="display: inline-flex; align-items: center; gap: 4px; margin-right: 4px;">
+                      <span class="font-mono" style="font-size: 0.7rem; color: var(--muted);">Calificar:</span>
+                      @for (st of [1, 2, 3, 4, 5]; track st) {
+                        <button
+                          type="button"
+                          class="star-btn"
+                          [class.active]="(ped.calificacion || 0) >= st"
+                          (click)="calificarPedidoEntregado(ped, st)"
+                        >
+                          {{ st }}★
+                        </button>
+                      }
+                    </div>
+                  }
+
+                  @if (ped.estado === 'ENTREGADO' || ped.estado === 'CANCELADO') {
+                    <button
+                      type="button"
+                      class="action-pill"
+                      (click)="repetirPedidoAnterior(ped)"
+                    >
+                      <span>Volver a Pedir</span>
+                    </button>
+                  }
+
                   <button
                     type="button"
-                    class="action-pill red"
-                    (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                    class="action-pill"
+                    (click)="pedidoQrActiva.set(ped)"
                   >
                     <svg class="icon-sm" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="m15 9-6 6" />
-                      <path d="m9 9 6 6" />
+                      <rect width="5" height="5" x="3" y="3" rx="1" />
+                      <rect width="5" height="5" x="16" y="3" rx="1" />
+                      <rect width="5" height="5" x="3" y="16" rx="1" />
+                      <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+                      <path d="M12 7v3a2 2 0 0 1-2 2H7" />
                     </svg>
-                    <span>Cancelar Orden</span>
+                    <span>Mostrar QR / PIN</span>
                   </button>
-                }
+
+                  @if (ped.estadoPago === 'PAGADO' && ped.estado !== 'CANCELADO') {
+                    <button
+                      type="button"
+                      class="action-pill"
+                      (click)="abrirBoletaElectronica(ped)"
+                    >
+                      <svg class="icon-sm" viewBox="0 0 24 24">
+                        <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                        <path d="M14 8H8" />
+                        <path d="M16 12H8" />
+                        <path d="M13 16H8" />
+                      </svg>
+                      <span>Boleta Electrónica</span>
+                    </button>
+                  }
+
+                  @if (ped.estado === 'NUEVO') {
+                    <button
+                      type="button"
+                      class="action-pill red"
+                      (click)="solicitarCancelacionPedido(ped)"
+                    >
+                      <svg class="icon-sm" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="m15 9-6 6" />
+                        <path d="m9 9 6 6" />
+                      </svg>
+                      <span>Cancelar Orden</span>
+                    </button>
+                  }
+                </div>
               </div>
             </article>
           } @empty {
             <div class="empty-ticket-box">
-              <h3 style="margin-bottom: 6px;">Aún no tienes boletos de pedido registrados</h3>
-              <p style="color: var(--muted); font-size: 0.86rem; margin-bottom: 14px;">
-                Selecciona tus platos en la Carta del Día y emite tu primera orden.
-              </p>
-              <button type="button" class="btn-add-dome" (click)="cambiarVista('CATALOGO')">
-                Ir a la Carta del Día
-              </button>
+              @if (subVistaMisPedidos() === 'EN_CURSO') {
+                <h3 style="margin-bottom: 6px;">No tienes boletos en preparación en este momento</h3>
+                <p style="color: var(--muted); font-size: 0.86rem; margin-bottom: 14px;">
+                  Pide tus platos en la Carta del Día o consulta tus órdenes anteriores en la pestaña "Historial y Cancelados".
+                </p>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                  <button type="button" class="btn-add-dome" (click)="cambiarVista('CATALOGO')">
+                    Ir a la Carta del Día
+                  </button>
+                  @if (pedidosHistorial().length > 0) {
+                    <button type="button" class="tab-arc-btn" (click)="subVistaMisPedidos.set('HISTORIAL')">
+                      Ver Historial ({{ pedidosHistorial().length }})
+                    </button>
+                  }
+                </div>
+              } @else {
+                <h3 style="margin-bottom: 6px;">Aún no tienes órdenes en el historial</h3>
+                <p style="color: var(--muted); font-size: 0.86rem;">
+                  Aquí se archivarán tus boletos entregados y cancelados para consulta o descarga de Boleta Electrónica.
+                </p>
+              }
             </div>
           }
         </div>
@@ -488,9 +650,9 @@
           style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;"
         >
           <div>
-            <h2 style="font-size: 1.7rem;">03 / Control de Caja, Cocina y Catálogo</h2>
+            <h2 style="font-size: 1.7rem;">03 / Control de Caja, Cocina, Escáner QR y Arqueo</h2>
             <p style="color: var(--muted); font-size: 0.88rem;">
-              Cambia estados de pedidos en un clic y administra productos o usuarios.
+              Valida entregas por PIN/QR, gestiona comandas en tiempo real y exporta el cierre de caja.
             </p>
           </div>
           <div class="admin-subtabs">
@@ -593,23 +755,104 @@
           </div>
         </div>
 
+        <!-- Franja de Arqueo de Caja por Canal (Yape/Plin/Tarjeta), Top Platos y Exportación Excel CSV -->
+        <div class="arqueo-strip">
+          <div class="font-mono" style="font-size: 0.75rem; display: flex; gap: 14px; flex-wrap: wrap;">
+            <span>
+              <strong>YAPE:</strong> S/ {{ arqueoDetalle()?.totalYape || 0 | number: '1.2-2' }}
+            </span>
+            <span>
+              <strong>PLIN:</strong> S/ {{ arqueoDetalle()?.totalPlin || 0 | number: '1.2-2' }}
+            </span>
+            <span>
+              <strong>TARJETA:</strong> S/ {{ arqueoDetalle()?.totalTarjeta || 0 | number: '1.2-2' }}
+            </span>
+            <span>
+              <strong>AUDITORÍA CANCELADAS:</strong> {{ resumenEstados().cancelados }}
+            </span>
+            <span>
+              <strong>SATISFACCIÓN TI (CSAT):</strong>
+              {{ arqueoDetalle()?.promedioCalificacion || '5.0' }} / 5 ★
+              ({{ arqueoDetalle()?.totalCalificaciones || 0 }} votos)
+            </span>
+            @if (arqueoDetalle()?.topPlatos?.length) {
+              <span style="color: var(--utp-red);">
+                <strong>TOP VENTAS:</strong>
+                @for (tp of arqueoDetalle()!.topPlatos!; track tp.nombre) {
+                  {{ tp.nombre }} ({{ tp.cantidad }}u)
+                }
+              </span>
+            }
+          </div>
+
+          <button type="button" class="action-pill green" (click)="exportarArqueoCsv()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Exportar Arqueo (.CSV / Excel)</span>
+          </button>
+        </div>
+
         <!-- SUB-VISTA ADMIN 1: COMANDAS ACTIVAS EN GRILLA DE 2 COLUMNAS -->
         @if (subVistaAdmin() === 'PEDIDOS') {
           <div>
+            <!-- Barra de Escáner / Validador Rápido de Entrega por PIN o QR en Barra -->
+            <div class="scanner-bar">
+              <div class="font-mono" style="font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <svg class="icon-sm" viewBox="0 0 24 24">
+                  <rect width="5" height="5" x="3" y="3" rx="1" />
+                  <rect width="5" height="5" x="16" y="3" rx="1" />
+                  <rect width="5" height="5" x="3" y="16" rx="1" />
+                  <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+                </svg>
+                <span>ENTREGA RÁPIDA EN BARRA (ESCÁNER QR / PIN):</span>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <input
+                  type="text"
+                  class="scanner-input"
+                  placeholder="Ingresa PIN (4 dígitos) o #CAF-XXXX..."
+                  [(ngModel)]="inputPinBarra"
+                  (keyup.enter)="validarEntregaPorPinEnBarra()"
+                />
+                <button
+                  type="button"
+                  class="action-pill green"
+                  (click)="validarEntregaPorPinEnBarra()"
+                >
+                  <svg class="icon-sm" viewBox="0 0 24 24">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  <span>Validar y Entregar</span>
+                </button>
+              </div>
+            </div>
+
             <div
               style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;"
             >
-              <h3 style="font-size: 1.15rem;">
-                Tablero de Comandas ({{ pedidosFiltrados().length }})
-              </h3>
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <h3 style="font-size: 1.15rem;">
+                  Tablero de Comandas ({{ pedidosFiltrados().length }})
+                </h3>
+                <input
+                  type="text"
+                  placeholder="Filtrar por alumno, código U23... o #CAF..."
+                  [ngModel]="busquedaComandaAdmin()"
+                  (ngModelChange)="busquedaComandaAdmin.set($event)"
+                  style="border: 1.5px solid var(--ink); border-radius: 99px; padding: 5px 14px; font-family: 'Space Mono', monospace; font-size: 0.73rem; background: var(--surface); min-width: 255px; outline: none;"
+                />
+              </div>
               <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 <button
                   type="button"
                   class="action-pill"
-                  [class.active-filter]="filtroEstadoPedido() === 'TODOS'"
-                  (click)="filtroEstadoPedido.set('TODOS')"
+                  [class.active-filter]="filtroEstadoPedido() === 'EN_CURSO'"
+                  (click)="filtroEstadoPedido.set('EN_CURSO')"
                 >
-                  Todas
+                  En Curso ({{ pedidosEnCurso().length }})
                 </button>
                 <button
                   type="button"
@@ -617,7 +860,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'NUEVO'"
                   (click)="filtroEstadoPedido.set('NUEVO')"
                 >
-                  Nuevas
+                  Nuevas ({{ resumenEstados().nuevos }})
                 </button>
                 <button
                   type="button"
@@ -625,7 +868,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'EN_PREPARACION'"
                   (click)="filtroEstadoPedido.set('EN_PREPARACION')"
                 >
-                  En Cocina
+                  En Cocina ({{ resumenEstados().preparacion }})
                 </button>
                 <button
                   type="button"
@@ -633,7 +876,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'LISTO'"
                   (click)="filtroEstadoPedido.set('LISTO')"
                 >
-                  Listas en Barra
+                  Listas en Barra ({{ resumenEstados().listos }})
                 </button>
                 <button
                   type="button"
@@ -641,7 +884,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'ENTREGADO'"
                   (click)="filtroEstadoPedido.set('ENTREGADO')"
                 >
-                  Entregadas
+                  Entregadas ({{ resumenEstados().entregados }})
                 </button>
                 <button
                   type="button"
@@ -649,7 +892,15 @@
                   [class.active-filter]="filtroEstadoPedido() === 'CANCELADO'"
                   (click)="filtroEstadoPedido.set('CANCELADO')"
                 >
-                  Canceladas
+                  Canceladas · Auditoría ({{ resumenEstados().cancelados }})
+                </button>
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'TODOS'"
+                  (click)="filtroEstadoPedido.set('TODOS')"
+                >
+                  Todas
                 </button>
               </div>
             </div>
@@ -662,13 +913,31 @@
                       style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 10px;"
                     >
                       <div>
-                        <strong class="font-mono" style="font-size: 1.02rem;">#{{ ped.codigo }}</strong>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <strong class="font-mono" style="font-size: 1.02rem;">#{{ ped.codigo }}</strong>
+                          <span
+                            class="ready-code"
+                            style="background: #FDE047; color: var(--ink); font-size: 0.66rem; padding: 2px 8px;"
+                          >
+                            PIN: {{ ped.pinEntrega || '2026' }}
+                          </span>
+                          @if (ped.estadoPago === 'PAGADO' && ped.estado !== 'CANCELADO') {
+                            <button
+                              type="button"
+                              class="chip-mini"
+                              (click)="abrirBoletaElectronica(ped)"
+                              title="Ver Boleta Electrónica SUNAT"
+                            >
+                              Boleta
+                            </button>
+                          }
+                        </div>
                         <div style="font-size: 0.84rem; font-weight: 700; margin-top: 2px;">
                           {{ ped.nombreCliente || 'Cliente #' + ped.clienteId }}
                           ({{ ped.codigoCliente || 'ID: ' + ped.clienteId }})
                         </div>
                         <small class="font-mono" style="color: var(--muted); font-size: 0.7rem;">
-                          {{ ped.fechaRegistro }}
+                          {{ ped.fechaRegistro }} · Recojo: <strong>{{ ped.horarioRecojo || 'INMEDIATO' }}</strong>
                           @if (ped.referenciaPago) {
                             · Ref: {{ ped.referenciaPago }}
                           }
@@ -687,21 +956,54 @@
                       </div>
                     </div>
 
-                    <div style="margin-bottom: 12px;">
+                    <div style="margin-bottom: 10px;">
                       @for (item of ped.items; track $index) {
                         <div class="receipt-row">
                           <span><strong>{{ item.cantidad }}x</strong> {{ item.nombreProducto }}</span>
                           <strong>S/ {{ item.subtotal | number: '1.2-2' }}</strong>
                         </div>
                       }
+                      @if (ped.montoExtras && ped.montoExtras > 0) {
+                        <div class="receipt-row" style="color: var(--utp-red);">
+                          <span><strong>+ Extras pagados</strong></span>
+                          <strong>S/ {{ ped.montoExtras | number: '1.2-2' }}</strong>
+                        </div>
+                      }
                     </div>
+
+                    @if (ped.cremasYExtras) {
+                      <div
+                        class="font-mono"
+                        style="font-size: 0.71rem; color: var(--ink); background: #EFECE6; padding: 5px 9px; margin-bottom: 6px;"
+                      >
+                        {{ ped.cremasYExtras }}
+                      </div>
+                    }
 
                     @if (ped.mensaje) {
                       <div
                         class="font-mono"
-                        style="font-size: 0.72rem; color: var(--muted); background: #F5F2EB; padding: 6px 10px; margin-bottom: 10px;"
+                        style="font-size: 0.72rem; color: var(--muted); background: #F5F2EB; padding: 6px 10px; margin-bottom: 6px;"
                       >
                         Nota: "{{ ped.mensaje }}"
+                      </div>
+                    }
+
+                    @if (ped.motivoCancelacion) {
+                      <div
+                        class="font-mono"
+                        style="font-size: 0.71rem; color: var(--utp-red); background: var(--utp-red-soft); padding: 6px 10px; margin-bottom: 8px;"
+                      >
+                        Auditoría Cancelación: {{ ped.motivoCancelacion }}
+                      </div>
+                    }
+
+                    @if (ped.calificacion) {
+                      <div
+                        class="font-mono"
+                        style="font-size: 0.71rem; color: #0F766E; background: var(--green-soft); padding: 4px 10px; margin-bottom: 8px;"
+                      >
+                        Calificación del Estudiante: {{ ped.calificacion }} / 5 ★
                       </div>
                     }
                   </div>
@@ -712,19 +1014,31 @@
                       <strong class="font-mono" style="font-size: 0.95rem;">
                         Total: S/ {{ ped.total | number: '1.2-2' }}
                       </strong>
-                      @if (ped.estadoPago !== 'PAGADO') {
-                        <button
-                          type="button"
-                          class="action-pill green"
-                          style="min-width: 138px; justify-content: center;"
-                          (click)="actualizarEstadoPedido(ped, { estadoPago: 'PAGADO' })"
+                      @if (ped.estado === 'CANCELADO') {
+                        <span
+                          class="action-pill"
+                          style="min-width: 138px; justify-content: center; background: var(--utp-red-soft); color: var(--utp-red); border-color: var(--utp-red); cursor: default;"
                         >
-                          <svg class="icon-sm" viewBox="0 0 24 24">
-                            <rect width="20" height="14" x="2" y="5" rx="2" />
-                            <line x1="2" y1="10" x2="22" y2="10" />
-                          </svg>
-                          <span>Confirmar Pago</span>
-                        </button>
+                          <span>{{ ped.estadoPago === 'RECHAZADO' ? 'Pago Rechazado' : 'Orden Anulada' }}</span>
+                        </span>
+                      } @else if (ped.estadoPago !== 'PAGADO') {
+                        <div style="display: flex; gap: 6px;">
+                          <button
+                            type="button"
+                            class="action-pill green"
+                            (click)="actualizarEstadoPedido(ped, { estadoPago: 'PAGADO' })"
+                          >
+                            <span>Confirmar Pago</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="action-pill red"
+                            title="Rechazar N° de operación inválido y devolver stock"
+                            (click)="rechazarPagoPedidoAdmin(ped)"
+                          >
+                            <span>Rechazar Pago</span>
+                          </button>
+                        </div>
                       } @else {
                         <span
                           class="action-pill"
@@ -743,6 +1057,8 @@
                       <button
                         type="button"
                         class="action-pill"
+                        [disabled]="ped.estado !== 'NUEVO' || ped.estadoPago !== 'PAGADO'"
+                        title="Requiere pago verificado para pasar a Cocina"
                         (click)="actualizarEstadoPedido(ped, { estado: 'EN_PREPARACION' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -754,6 +1070,8 @@
                       <button
                         type="button"
                         class="action-pill amber"
+                        [disabled]="ped.estado !== 'EN_PREPARACION'"
+                        title="Solo disponible cuando el pedido está en Cocina"
                         (click)="actualizarEstadoPedido(ped, { estado: 'LISTO' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -766,6 +1084,8 @@
                       <button
                         type="button"
                         class="action-pill green"
+                        [disabled]="ped.estado !== 'LISTO'"
+                        title="Solo se puede entregar cuando el pedido está LISTO en barra"
                         (click)="actualizarEstadoPedido(ped, { estado: 'ENTREGADO', estadoPago: 'PAGADO' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -779,7 +1099,8 @@
                         class="action-pill red"
                         style="padding: 6px 10px;"
                         title="Cancelar orden"
-                        (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                        [disabled]="ped.estado === 'ENTREGADO' || ped.estado === 'CANCELADO'"
+                        (click)="solicitarCancelacionPedido(ped)"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
                           <path d="M18 6 6 18" />
@@ -826,6 +1147,15 @@
                       <small style="color: var(--muted); margin-left: 8px;">
                         [{{ pr.categoria }}] · Stock: {{ pr.stock ?? '∞' }}
                       </small>
+                      @if (pr.stock !== null && pr.stock !== undefined && pr.stock === 0) {
+                        <span class="ready-code" style="background: var(--utp-red); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
+                          AGOTADO
+                        </span>
+                      } @else if (pr.stock !== null && pr.stock !== undefined && pr.stock <= 5) {
+                        <span class="ready-code" style="background: var(--amber); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
+                          STOCK CRÍTICO
+                        </span>
+                      }
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -879,7 +1209,13 @@
                     <button type="button" class="action-pill" (click)="abrirModalEditarUsuario(u)">
                       Editar
                     </button>
-                    <button type="button" class="action-pill red" (click)="eliminarUsuarioAdmin(u)">
+                    <button
+                      type="button"
+                      class="action-pill red"
+                      [disabled]="u.codigo === 'ADMIN' || u.codigo === sesion()?.codigo"
+                      title="La cuenta administradora activa está protegida"
+                      (click)="eliminarUsuarioAdmin(u)"
+                    >
                       Eliminar
                     </button>
                   </div>
@@ -892,130 +1228,568 @@
     }
   </main>
 
-  <!-- ==================== COLUMNA 3: TICKET DE COMPRA REAL ==================== -->
+  <!-- ==================== COLUMNA 3: TICKET DE COMPRA (ESTUDIANTE) O MONITOR DE CAJA (ADMIN) ==================== -->
   <aside class="ticket-dock">
     <div class="paper-receipt">
-      <div class="receipt-head">
-        <h3>
-          <svg class="icon-md" viewBox="0 0 24 24">
-            <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
-            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
-            <path d="M12 17.5v-11" />
-          </svg>
-          <span>TICKET DE ORDEN</span>
-        </h3>
-        <small>SEDE PIURA · CAJA RÁPIDA</small>
-      </div>
-
-      <div class="receipt-items">
-        @for (item of carrito(); track item.producto.id) {
-          <div class="receipt-row">
-            <div style="flex: 1;">
-              <strong>{{ item.producto.nombre }}</strong><br />
-              <small style="color: var(--muted);">
-                S/ {{ item.producto.precio | number: '1.2-2' }} c/u
-              </small>
-            </div>
-            <div class="qty-stepper">
-              <button
-                type="button"
-                class="qty-btn"
-                (click)="cambiarCantidadCarrito(item.producto.id, -1)"
-              >
-                -
-              </button>
-              <strong>{{ item.cantidad }}</strong>
-              <button
-                type="button"
-                class="qty-btn"
-                (click)="cambiarCantidadCarrito(item.producto.id, 1)"
-              >
-                +
-              </button>
-            </div>
-            <strong style="min-width: 62px; text-align: right;">
-              S/ {{ item.producto.precio * item.cantidad | number: '1.2-2' }}
-            </strong>
-          </div>
-        } @empty {
-          <div
-            style="text-align: center; padding: 36px 10px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.76rem;"
-          >
-            [ TICKET VACÍO ]<br />Selecciona platos de la carta
-          </div>
-        }
-      </div>
-
-      <div class="receipt-pay-box">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span class="font-mono" style="font-size: 0.72rem; font-weight: 700;">MÉTODO DE PAGO:</span>
-          <button
-            type="button"
-            (click)="vaciarCarrito()"
-            style="border: none; background: none; color: var(--utp-red); font-family: 'Space Mono', monospace; font-size: 0.7rem; cursor: pointer;"
-          >
-            [Vaciar]
-          </button>
+      @if (esCafeteria()) {
+        <div class="receipt-head">
+          <h3>
+            <svg class="icon-md" viewBox="0 0 24 24">
+              <rect width="7" height="9" x="3" y="3" rx="1" />
+              <rect width="7" height="5" x="14" y="3" rx="1" />
+              <rect width="7" height="9" x="14" y="12" rx="1" />
+              <rect width="7" height="5" x="3" y="16" rx="1" />
+            </svg>
+            <span>MODO CAJA & COCINA</span>
+          </h3>
+          <small>PANEL OPERATIVO · ROL CAFETERÍA</small>
         </div>
 
-        <div class="pay-selector">
-          @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
-            <button
-              type="button"
-              class="pay-option"
-              [class.active]="metodoPago === m"
-              (click)="metodoPago = m"
+        <div class="receipt-items">
+          <div
+            style="background: var(--bg-warm); border: 1.5px dashed var(--ink); padding: 14px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.74rem; line-height: 1.45;"
+          >
+            <strong>CUENTA ADMINISTRATIVA ACTIVA</strong><br />
+            El personal de Cafetería gestiona las comandas, el stock y el arqueo de caja; la emisión
+            de tickets de compra está habilitada únicamente para cuentas de <strong>ESTUDIANTE</strong>.
+          </div>
+
+          <div class="receipt-row">
+            <span>Comandas Nuevas:</span>
+            <strong>{{ resumenEstados().nuevos }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>En Preparación (Cocina):</span>
+            <strong>{{ resumenEstados().preparacion }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Listas en Barra:</span>
+            <strong style="color: var(--green);">{{ resumenEstados().listos }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Entregadas Total:</span>
+            <strong>{{ resumenEstados().entregados }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Canceladas (Auditoría):</span>
+            <strong style="color: var(--utp-red);">{{ resumenEstados().cancelados }}</strong>
+          </div>
+        </div>
+
+        <div class="receipt-pay-box">
+          <div
+            style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
+            class="font-mono"
+          >
+            <span style="font-size: 0.78rem; font-weight: 700;">RECAUDACIÓN DÍA:</span>
+            <strong style="font-size: 1.2rem; color: var(--green);">
+              S/ {{ totalRecaudadoDia() | number: '1.2-2' }}
+            </strong>
+          </div>
+
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="cambiarVista('ADMIN')"
+          >
+            <span>IR AL TABLERO DE COMANDAS</span>
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </button>
+          <div class="barcode"></div>
+        </div>
+      } @else {
+        <div class="receipt-head">
+          <h3>
+            <svg class="icon-md" viewBox="0 0 24 24">
+              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 17.5v-11" />
+            </svg>
+            <span>TICKET DE ORDEN</span>
+          </h3>
+          <small>SEDE PIURA · CAJA RÁPIDA</small>
+        </div>
+
+        <div class="receipt-items">
+          @for (item of carrito(); track item.producto.id) {
+            <div class="receipt-row">
+              <div style="flex: 1;">
+                <strong>{{ item.producto.nombre }}</strong><br />
+                <small style="color: var(--muted);">
+                  S/ {{ item.producto.precio | number: '1.2-2' }} c/u · [{{ item.producto.categoria }}]
+                </small>
+              </div>
+              <div class="qty-stepper">
+                <button
+                  type="button"
+                  class="qty-btn"
+                  (click)="cambiarCantidadCarrito(item.producto.id, -1)"
+                >
+                  -
+                </button>
+                <strong>{{ item.cantidad }}</strong>
+                <button
+                  type="button"
+                  class="qty-btn"
+                  (click)="cambiarCantidadCarrito(item.producto.id, 1)"
+                >
+                  +
+                </button>
+              </div>
+              <strong style="min-width: 62px; text-align: right;">
+                S/ {{ item.producto.precio * item.cantidad | number: '1.2-2' }}
+              </strong>
+            </div>
+          } @empty {
+            <div
+              style="text-align: center; padding: 28px 10px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.76rem;"
             >
-              {{ m }}
-            </button>
+              [ TICKET VACÍO ]<br />Selecciona platos de la carta
+            </div>
+          }
+
+          @if (carrito().length > 0) {
+            <!-- Personalización Dinámica contextual según las categorías de los productos en el ticket -->
+            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line);">
+              <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
+                {{ etiquetaCremasCarrito() }}
+              </div>
+              <div class="chip-group">
+                @for (c of cremasDisponibles(); track c) {
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="cremasSeleccionadas().includes(c)"
+                    (click)="toggleCrema(c)"
+                  >
+                    {{ c }}
+                  </button>
+                }
+              </div>
+
+              <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
+                ADICIONALES DISPONIBLES PARA TU PEDIDO:
+              </div>
+              <div class="chip-group">
+                @for (ex of extrasDisponibles(); track ex.id) {
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="extrasSeleccionados().includes(ex.id)"
+                    (click)="toggleExtra(ex.id)"
+                  >
+                    {{ ex.nombre }} (S/ {{ ex.precio | number: '1.2-2' }})
+                  </button>
+                }
+              </div>
+            </div>
           }
         </div>
 
-        <input
-          type="text"
-          class="receipt-input"
-          placeholder="N° Operación / Referencia (opc.)"
-          [(ngModel)]="referenciaPago"
-        />
-        <input
-          type="text"
-          class="receipt-input"
-          placeholder="Nota cocina: ej. sin cremas..."
-          [(ngModel)]="mensajePedido"
-        />
+        <div class="receipt-pay-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span class="font-mono" style="font-size: 0.7rem; font-weight: 700;">HORARIO DE RECOJO:</span>
+            <button
+              type="button"
+              (click)="vaciarCarrito()"
+              style="border: none; background: none; color: var(--utp-red); font-family: 'Space Mono', monospace; font-size: 0.7rem; cursor: pointer;"
+            >
+              [Vaciar]
+            </button>
+          </div>
 
-        <div
-          style="display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0;"
-          class="font-mono"
-        >
-          <span style="font-size: 0.82rem; font-weight: 700;">TOTAL TICKET:</span>
-          <strong style="font-size: 1.25rem; color: var(--utp-red);">
-            S/ {{ totalMontoCarrito() | number: '1.2-2' }}
-          </strong>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+            <button
+              type="button"
+              class="pay-option"
+              [class.active]="modoHorarioRecojo() === 'INMEDIATO'"
+              (click)="modoHorarioRecojo.set('INMEDIATO')"
+            >
+              INMEDIATO (~{{ tiempoEstimadoMinutos() }}m)
+            </button>
+            <button
+              type="button"
+              class="pay-option"
+              [class.active]="modoHorarioRecojo() === 'PROGRAMADO'"
+              (click)="modoHorarioRecojo.set('PROGRAMADO')"
+            >
+              ELEGIR HORA LIBRE
+            </button>
+          </div>
+
+          @if (modoHorarioRecojo() === 'PROGRAMADO') {
+            <div style="background: var(--bg-warm); border: 1px dashed var(--ink); padding: 8px; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+                <span class="font-mono" style="font-size: 0.68rem; font-weight: 700;">Hora exacta (07:00 - 22:00):</span>
+                <input
+                  type="time"
+                  min="07:00"
+                  max="22:00"
+                  [(ngModel)]="horaRecojoPersonalizada"
+                  style="border: 1.5px solid var(--ink); padding: 3px 8px; font-family: 'Space Mono', monospace; font-size: 0.75rem; font-weight: 700; background: #fff;"
+                />
+              </div>
+              <div class="chip-group" style="margin-bottom: 0;">
+                @for (hs of horasSugeridasUtp; track hs) {
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="horaRecojoPersonalizada === hs"
+                    (click)="horaRecojoPersonalizada = hs"
+                  >
+                    {{ hs }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <div class="pay-selector">
+            @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
+              <button
+                type="button"
+                class="pay-option"
+                [class.active]="metodoPago === m"
+                (click)="metodoPago = m"
+              >
+                {{ m }}
+              </button>
+            }
+          </div>
+
+          <input
+            type="text"
+            class="receipt-input"
+            placeholder="Nota cocina: ej. poca sal, para llevar..."
+            [(ngModel)]="mensajePedido"
+          />
+
+          <div
+            style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
+            class="font-mono"
+          >
+            <span style="font-size: 0.82rem; font-weight: 700;">TOTAL TICKET:</span>
+            <strong style="font-size: 1.25rem; color: var(--utp-red);">
+              S/ {{ totalMontoCarrito() | number: '1.2-2' }}
+            </strong>
+          </div>
+
+          <button
+            type="button"
+            class="btn-emitir"
+            [disabled]="cargando()"
+            (click)="abrirPasarelaOPedir()"
+          >
+            <span>PAGAR CON UTP PAY & EMITIR</span>
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </button>
+          <div class="barcode"></div>
         </div>
-
-        <button
-          type="button"
-          class="btn-emitir"
-          [disabled]="cargando()"
-          (click)="confirmarPedido()"
-        >
-          <span>EMITIR ORDEN A COCINA</span>
-          <svg class="icon-sm" viewBox="0 0 24 24">
-            <path d="M5 12h14" />
-            <path d="m12 5 7 7-7 7" />
-          </svg>
-        </button>
-        <div class="barcode"></div>
-      </div>
+      }
     </div>
   </aside>
+
+  <!-- ==================== MODAL PASARELA INTERACTIVA "UTP PAY" ==================== -->
+  @if (mostrarModalPasarela()) {
+    <div class="modal-overlay" (click)="mostrarModalPasarela.set(false)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag" style="margin-bottom: 8px;">
+          PASARELA SEGURA · UTP PAY ({{ metodoPago }})
+        </span>
+        <h3 style="margin-bottom: 6px;">
+          Total a Pagar: S/ {{ totalMontoCarrito() | number: '1.2-2' }}
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 14px;">
+          Horario de recojo: <strong>{{ horarioRecojoFinal() }}</strong>
+          @if (resumenCremasYExtras()) {
+            <br />{{ resumenCremasYExtras() }}
+          }
+        </p>
+
+        @if (metodoPago === 'YAPE' || metodoPago === 'PLIN') {
+          <div
+            style="background: var(--bg-warm); border: 1.5px dashed var(--ink); padding: 16px; text-align: center; margin-bottom: 14px;"
+          >
+            <div class="font-mono" style="font-size: 0.74rem; font-weight: 700; margin-bottom: 8px;">
+              QR DINÁMICO {{ metodoPago }} · CAFETERÍA UTP S.A.C.
+            </div>
+            <div class="qr-mini-box qr-lg" style="margin: 0 auto 10px;">
+              @for (bit of generarMatrizQr(metodoPago + totalMontoCarrito()); track $index) {
+                <span class="qr-cell" [class.filled]="bit"></span>
+              }
+            </div>
+            <div style="margin-top: 8px;">
+              <button
+                type="button"
+                class="btn-emitir"
+                style="background: var(--green); margin-bottom: 8px;"
+                [disabled]="cargando()"
+                (click)="procesarPagoInstantaneoUtpPay()"
+              >
+                <span>CONFIRMAR PAGO CON QR {{ metodoPago }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label>O ingresa N° de Operación manual (Validación Antifraude):</label>
+            <input
+              type="text"
+              placeholder="Ej. 948201 (Código único de operación)"
+              [(ngModel)]="referenciaPago"
+            />
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button
+              type="button"
+              class="btn-emitir"
+              [disabled]="cargando()"
+              (click)="confirmarPedidoConReferenciaManual()"
+            >
+              EMITIR CON N° DE OPERACIÓN
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="mostrarModalPasarela.set(false)">
+              Cancelar
+            </button>
+          </div>
+        } @else {
+          <!-- Pago con Tarjeta Visa / Mastercard -->
+          <div class="field-group">
+            <label>Número de Tarjeta</label>
+            <input type="text" [(ngModel)]="tarjetaNumero" />
+          </div>
+          <div class="field-group">
+            <label>Titular de la Tarjeta</label>
+            <input type="text" [(ngModel)]="tarjetaTitular" />
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field-group">
+              <label>Vencimiento</label>
+              <input type="text" [(ngModel)]="tarjetaExp" />
+            </div>
+            <div class="field-group">
+              <label>CVV</label>
+              <input type="password" [(ngModel)]="tarjetaCvv" />
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <button
+              type="button"
+              class="btn-emitir"
+              style="background: var(--green);"
+              [disabled]="cargando()"
+              (click)="procesarPagoInstantaneoUtpPay()"
+            >
+              PAGAR S/ {{ totalMontoCarrito() | number: '1.2-2' }} CON TARJETA
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="mostrarModalPasarela.set(false)">
+              Cancelar
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL VISOR DE QR Y PIN DE ENTREGA EN BARRA ==================== -->
+  @if (pedidoQrActiva(); as pedQr) {
+    <div class="modal-overlay" (click)="pedidoQrActiva.set(null)">
+      <div class="modal-dome" style="text-align: center;" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">PASE DE RECOJO EN BARRA · UTP</span>
+        <h3 style="margin: 8px 0 4px;">BOLETO #{{ pedQr.codigo }}</h3>
+        <p class="font-mono" style="font-size: 0.78rem; color: var(--muted); margin-bottom: 14px;">
+          Muestra este QR o dicta tu PIN de 4 dígitos en la barra de entrega
+        </p>
+
+        <div class="qr-mini-box qr-lg" style="margin: 0 auto 14px;">
+          @for (bit of generarMatrizQr(pedQr.codigo + (pedQr.pinEntrega || '')); track $index) {
+            <span class="qr-cell" [class.filled]="bit"></span>
+          }
+        </div>
+
+        <div
+          class="font-mono"
+          style="background: var(--ink); color: #FDE047; padding: 10px 18px; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 14px;"
+        >
+          PIN: {{ pedQr.pinEntrega || '2026' }}
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          @if (esCafeteria() && pedQr.estado !== 'ENTREGADO' && pedQr.estado !== 'CANCELADO') {
+            <button
+              type="button"
+              class="btn-emitir"
+              style="background: var(--green);"
+              (click)="validarEntregaPorPinEnBarra(pedQr.pinEntrega || pedQr.codigo); pedidoQrActiva.set(null)"
+            >
+              CONFIRMAR ENTREGA EN BARRA
+            </button>
+          }
+          <button type="button" class="tab-arc-btn" (click)="pedidoQrActiva.set(null)">
+            Cerrar Pase
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL BOLETA DE VENTA ELECTRÓNICA (SUNAT MOCK) ==================== -->
+  @if (pedidoBoletaActiva(); as bol) {
+    <div class="modal-overlay" (click)="pedidoBoletaActiva.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <div class="boleta-thermal">
+          <div style="text-align: center; border-bottom: 1px dashed var(--ink); padding-bottom: 10px; margin-bottom: 10px;">
+            <strong style="font-size: 0.9rem;">CONCESIONARIO CAFETERÍA UTP S.A.C.</strong><br />
+            <span>R.U.C. 20462509236 · SEDE PIURA</span><br />
+            <strong>BOLETA DE VENTA ELECTRÓNICA</strong><br />
+            <span>SERIE B001 - N° 000{{ bol.id }}</span>
+          </div>
+
+          <div style="margin-bottom: 10px; line-height: 1.45;">
+            <div><strong>FECHA EMISIÓN:</strong> {{ bol.fechaRegistro }}</div>
+            <div><strong>CLIENTE:</strong> {{ bol.nombreCliente || 'ESTUDIANTE UTP' }}</div>
+            <div><strong>CÓDIGO / DOC:</strong> {{ bol.codigoCliente || 'U2303001' }}</div>
+            <div><strong>BOLETO ORDEN:</strong> #{{ bol.codigo }} (PIN: {{ bol.pinEntrega || '2026' }})</div>
+            <div><strong>CANAL DE PAGO:</strong> {{ bol.metodoPago }} ({{ bol.estadoPago }})</div>
+            @if (bol.referenciaPago) {
+              <div><strong>REF. OPERACIÓN:</strong> {{ bol.referenciaPago }}</div>
+            }
+          </div>
+
+          <div style="border-top: 1px dashed var(--ink); border-bottom: 1px dashed var(--ink); padding: 8px 0; margin-bottom: 10px;">
+            @for (it of bol.items; track $index) {
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>{{ it.cantidad }}x {{ it.nombreProducto }}</span>
+                <strong>S/ {{ it.subtotal | number: '1.2-2' }}</strong>
+              </div>
+            }
+            @if (bol.montoExtras && bol.montoExtras > 0) {
+              <div style="display: flex; justify-content: space-between;">
+                <span>1x Adicionales / Extras</span>
+                <strong>S/ {{ bol.montoExtras | number: '1.2-2' }}</strong>
+              </div>
+            }
+          </div>
+
+          <div style="line-height: 1.5; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span>OP. GRAVADA (S/):</span>
+              <span>{{ calcularOpGravada(bol.total) | number: '1.2-2' }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>I.G.V. (18%):</span>
+              <span>{{ calcularIgv(bol.total) | number: '1.2-2' }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.92rem; font-weight: 700;">
+              <span>IMPORTE TOTAL:</span>
+              <span>S/ {{ bol.total | number: '1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div style="text-align: center;">
+            <div class="qr-mini-box" style="margin: 0 auto 6px;">
+              @for (bit of generarMatrizQr('SUNAT-B001-' + bol.codigo); track $index) {
+                <span class="qr-cell" [class.filled]="bit"></span>
+              }
+            </div>
+            <small>Representación impresa de la Boleta de Venta Electrónica</small>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 14px;">
+          <button type="button" class="btn-emitir" (click)="imprimirBoleta()">
+            IMPRIMIR / GUARDAR PDF
+          </button>
+          <button type="button" class="tab-arc-btn" (click)="pedidoBoletaActiva.set(null)">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL CONFIRMACIÓN DE ELIMINACIÓN (PRODUCTO / USUARIO) ==================== -->
+  @if (registroPorEliminar(); as regElim) {
+    <div class="modal-overlay" (click)="registroPorEliminar.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">CONFIRMACIÓN DE SEGURIDAD</span>
+        <h3 style="margin: 8px 0 6px;">¿Eliminar {{ regElim.etiqueta }}?</h3>
+        <p style="font-size: 0.84rem; color: var(--muted); margin-bottom: 14px; line-height: 1.45;">
+          Esta acción eliminará el registro de la base de datos MySQL si no posee comandas
+          contables asociadas.
+        </p>
+
+        <div style="display: flex; gap: 10px; margin-top: 16px;">
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="confirmarEliminacionRegistro()"
+          >
+            CONFIRMAR ELIMINACIÓN
+          </button>
+          <button
+            type="button"
+            class="tab-arc-btn"
+            (click)="registroPorEliminar.set(null)"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL CONFIRMACIÓN DE CANCELACIÓN (AUDITORÍA) ==================== -->
+  @if (pedidoPorCancelar(); as pedCanc) {
+    <div class="modal-overlay" (click)="pedidoPorCancelar.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">CONTROL Y AUDITORÍA DE INVENTARIO</span>
+        <h3 style="margin: 8px 0 6px;">¿Cancelar la Orden #{{ pedCanc.codigo }}?</h3>
+        <p style="font-size: 0.84rem; color: var(--muted); margin-bottom: 12px; line-height: 1.45;">
+          Al confirmar la cancelación, las unidades se <strong>devolverán automáticamente al stock</strong> y la orden quedará archivada en <strong>Historial / Auditoría</strong>.
+        </p>
+
+        <div class="field-group">
+          <label>Motivo de Cancelación (Registro de Auditoría)</label>
+          <select [(ngModel)]="motivoCancelacionSeleccionado">
+            @for (mot of (esCafeteria() ? motivosCancelacionAdmin : motivosCancelacionEstudiante); track mot) {
+              <option [value]="mot">{{ mot }}</option>
+            }
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 16px;">
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="confirmarCancelacionPedido()"
+          >
+            CONFIRMAR CANCELACIÓN
+          </button>
+          <button
+            type="button"
+            class="tab-arc-btn"
+            (click)="pedidoPorCancelar.set(null)"
+          >
+            Mantener Orden
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 
   <!-- ==================== MODAL LOGIN / REGISTRO ==================== -->
   @if (mostrarModalAuth()) {
     <div class="modal-overlay" (click)="mostrarModalAuth.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
-        <div class="auth-mode-switch">
+        <div class="auth-mode-switch" style="flex-wrap: wrap;">
           <button
             type="button"
             class="tab-arc-btn"
@@ -1036,7 +1810,12 @@
 
         @if (modoAuth() === 'LOGIN') {
           <form (ngSubmit)="iniciarSesion()">
-            <h3 style="margin-bottom: 6px;">Acceso Universitario UTP</h3>
+            <h3
+              style="margin-bottom: 6px; cursor: pointer;"
+              (dblclick)="mostrarAccesoRapido.set(!mostrarAccesoRapido())"
+            >
+              Acceso Universitario UTP
+            </h3>
             <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
               Ingresa con tu código UTP o cuenta administrativa de Cafetería.
             </p>
@@ -1046,7 +1825,7 @@
               <input
                 type="text"
                 name="loginIdentificador"
-                placeholder="Ej. U2303001 o ADMIN"
+                placeholder="Ej. U2303001 o correo@utp.edu.pe"
                 [(ngModel)]="loginIdentificador"
                 required
               />
@@ -1063,17 +1842,19 @@
               />
             </div>
 
-            <div class="demo-access-strip">
-              <span>Acceso rápido:</span>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button type="button" class="action-pill" (click)="autocompletarEstudiante()">
-                  Estudiante (U2303001)
-                </button>
-                <button type="button" class="action-pill" (click)="autocompletarAdmin()">
-                  Admin (CAFETERIA)
-                </button>
+            @if (mostrarAccesoRapido()) {
+              <div class="demo-access-strip">
+                <span>Perfiles:</span>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button type="button" class="action-pill" (click)="autocompletarEstudiante()">
+                    Estudiante (U2303001)
+                  </button>
+                  <button type="button" class="action-pill" (click)="autocompletarAdmin()">
+                    Admin (CAFETERIA)
+                  </button>
+                </div>
               </div>
-            </div>
+            }
 
             <div style="display: flex; gap: 10px; margin-top: 16px;">
               <button type="submit" class="btn-emitir" [disabled]="cargando()">
@@ -1088,7 +1869,7 @@
           <form (ngSubmit)="registrarEstudiante()">
             <h3 style="margin-bottom: 6px;">Registro de Estudiante UTP</h3>
             <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
-              Crea tu cuenta para emitir órdenes digitales sin hacer cola.
+              Crea tu cuenta con tu código UTP; tu correo institucional se generará automáticamente.
             </p>
 
             <div class="field-group">
@@ -1097,7 +1878,8 @@
                 type="text"
                 name="regCodigo"
                 placeholder="Ej. U2410500"
-                [(ngModel)]="regCodigo"
+                [ngModel]="regCodigo"
+                (ngModelChange)="actualizarCodigoRegistro($event)"
                 required
               />
             </div>
@@ -1114,12 +1896,14 @@
             </div>
 
             <div class="field-group">
-              <label>Correo Institucional</label>
+              <label>Correo Institucional (Autogenerado)</label>
               <input
                 type="email"
                 name="regCorreo"
                 placeholder="u2410500@utp.edu.pe"
                 [(ngModel)]="regCorreo"
+                readonly
+                style="background: var(--bg-warm); color: var(--muted);"
                 required
               />
             </div>

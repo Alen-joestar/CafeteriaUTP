@@ -44,6 +44,16 @@ public class Pedido {
     private String estadoPago;
     @Column(length = 120)
     private String referenciaPago;
+    @Column(length = 10)
+    private String pinEntrega;
+    @Column(length = 40)
+    private String horarioRecojo;
+    @Column(length = 255)
+    private String cremasYExtras;
+    private Double montoExtras;
+    @Column(length = 180)
+    private String motivoCancelacion;
+    private Integer calificacion;
 
     public Pedido() {
     }
@@ -172,5 +182,53 @@ public class Pedido {
 
     public void setReferenciaPago(String referenciaPago) {
         this.referenciaPago = referenciaPago;
+    }
+
+    public String getPinEntrega() {
+        return pinEntrega;
+    }
+
+    public void setPinEntrega(String pinEntrega) {
+        this.pinEntrega = pinEntrega;
+    }
+
+    public String getHorarioRecojo() {
+        return horarioRecojo;
+    }
+
+    public void setHorarioRecojo(String horarioRecojo) {
+        this.horarioRecojo = horarioRecojo;
+    }
+
+    public String getCremasYExtras() {
+        return cremasYExtras;
+    }
+
+    public void setCremasYExtras(String cremasYExtras) {
+        this.cremasYExtras = cremasYExtras;
+    }
+
+    public Double getMontoExtras() {
+        return montoExtras;
+    }
+
+    public void setMontoExtras(Double montoExtras) {
+        this.montoExtras = montoExtras;
+    }
+
+    public String getMotivoCancelacion() {
+        return motivoCancelacion;
+    }
+
+    public void setMotivoCancelacion(String motivoCancelacion) {
+        this.motivoCancelacion = motivoCancelacion;
+    }
+
+    public Integer getCalificacion() {
+        return calificacion;
+    }
+
+    public void setCalificacion(Integer calificacion) {
+        this.calificacion = calificacion;
     }
 }
