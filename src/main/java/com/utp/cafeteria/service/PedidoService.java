@@ -124,6 +124,17 @@ public class PedidoService {
             return pedidos.save(pedido);
         }
 
+        if (dto.estadoPago() != null && !dto.estadoPago().isBlank()) {
+            String nuevoEstadoPago = dto.estadoPago().trim().toUpperCase(Locale.ROOT);
+            if (!ESTADOS_PAGO_VALIDOS.contains(nuevoEstadoPago)) {
+                throw new IllegalArgumentException("Estado de pago no soportado: PENDIENTE, PAGADO o RECHAZADO");
+            }
+            if ("CANCELADO".equalsIgnoreCase(pedido.getEstado()) && "PAGADO".equals(nuevoEstadoPago)) {
+                throw new IllegalArgumentException("No se puede confirmar el pago de una orden que ya fue CANCELADA");
+            }
+            pedido.setEstadoPago(nuevoEstadoPago);
+        }
+
         if (dto.estado() != null && !dto.estado().isBlank()) {
             String nuevoEstado = validarEstado(dto.estado());
             String estadoActual = pedido.getEstado() == null ? "NUEVO" : pedido.getEstado().toUpperCase(Locale.ROOT);
@@ -145,18 +156,16 @@ public class PedidoService {
                         "Flujo inválido: no se puede retroceder un pedido de " + estadoActual + " a " + nuevoEstado);
             }
 
+            if (List.of("EN_PREPARACION", "LISTO", "ENTREGADO").contains(nuevoEstado)
+                    && !"PAGADO".equalsIgnoreCase(pedido.getEstadoPago())) {
+                throw new IllegalArgumentException(
+                        "Primero debes confirmar el pago del pedido antes de pasarlo a Cocina o Barra");
+            }
+
             if ("CANCELADO".equals(nuevoEstado) && !"CANCELADO".equalsIgnoreCase(estadoActual)) {
                 devolverStock(pedido);
             }
             pedido.setEstado(nuevoEstado);
-        }
-
-        if (dto.estadoPago() != null && !dto.estadoPago().isBlank()) {
-            String nuevoEstadoPago = dto.estadoPago().trim().toUpperCase(Locale.ROOT);
-            if (!ESTADOS_PAGO_VALIDOS.contains(nuevoEstadoPago)) {
-                throw new IllegalArgumentException("Estado de pago no soportado: PENDIENTE, PAGADO o RECHAZADO");
-            }
-            pedido.setEstadoPago(nuevoEstadoPago);
         }
 
         return pedidos.save(pedido);
@@ -308,6 +317,12 @@ public class PedidoService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No se encontró ningún pedido activo pendiente de entrega con el código/PIN: " + codigoOPin));
+
+        if (!"LISTO".equalsIgnoreCase(encontrado.getEstado())) {
+            throw new IllegalArgumentException(
+                    "El boleto #" + encontrado.getCodigo() + " está en estado " + encontrado.getEstado()
+                            + ". Solo se pueden entregar pedidos que ya estén LISTOS en barra.");
+        }
 
         encontrado.setEstado("ENTREGADO");
         encontrado.setEstadoPago("PAGADO");

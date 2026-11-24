@@ -54,6 +54,14 @@ export class ApiService {
   }
 
   // Pedidos
+  listarMonitorBarra(): Observable<
+    { id: number; codigo: string; nombreCliente: string; codigoCliente: string; horarioRecojo: string }[]
+  > {
+    return this.http.get<
+      { id: number; codigo: string; nombreCliente: string; codigoCliente: string; horarioRecojo: string }[]
+    >(`${this.baseUrl}/pedidos/monitor-barra`);
+  }
+
   listarPedidos(estado?: string): Observable<Pedido[]> {
     let params = new HttpParams();
     if (estado && estado !== 'TODOS') {

@@ -44,6 +44,14 @@ public class UsuarioService {
         if (datos.getCodigo() == null || datos.getCodigo().isBlank() || datos.getCorreo() == null || datos.getCorreo().isBlank()
                 || datos.getNombreCompleto() == null || datos.getNombreCompleto().isBlank())
             throw new IllegalArgumentException("Código, correo y nombre son obligatorios");
+        if ("ADMIN".equalsIgnoreCase(existente.getCodigo())) {
+            if (!"ADMIN".equalsIgnoreCase(datos.getCodigo())) {
+                throw new IllegalArgumentException("No se puede cambiar el código de la cuenta principal ADMIN");
+            }
+            if (datos.getRol() != null && !"CAFETERIA".equalsIgnoreCase(datos.getRol())) {
+                throw new IllegalArgumentException("No se puede degradar el rol de la cuenta principal ADMIN");
+            }
+        }
         existente.setCodigo(datos.getCodigo());
         existente.setCorreo(datos.getCorreo());
         existente.setNombreCompleto(datos.getNombreCompleto());
@@ -60,7 +68,11 @@ public class UsuarioService {
     }
 
     public boolean eliminar(Long id) {
-        if (!usuarioRepository.existsById(id)) return false;
+        Usuario existente = buscarPorId(id);
+        if (existente == null) return false;
+        if ("ADMIN".equalsIgnoreCase(existente.getCodigo())) {
+            throw new IllegalArgumentException("Por seguridad, no se puede eliminar la cuenta principal ADMIN del sistema");
+        }
         usuarioRepository.deleteById(id);
         return true;
     }

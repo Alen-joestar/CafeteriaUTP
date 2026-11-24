@@ -549,19 +549,21 @@
                     <span>Mostrar QR / PIN</span>
                   </button>
 
-                  <button
-                    type="button"
-                    class="action-pill"
-                    (click)="abrirBoletaElectronica(ped)"
-                  >
-                    <svg class="icon-sm" viewBox="0 0 24 24">
-                      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
-                      <path d="M14 8H8" />
-                      <path d="M16 12H8" />
-                      <path d="M13 16H8" />
-                    </svg>
-                    <span>Boleta Electrónica</span>
-                  </button>
+                  @if (ped.estadoPago === 'PAGADO' && ped.estado !== 'CANCELADO') {
+                    <button
+                      type="button"
+                      class="action-pill"
+                      (click)="abrirBoletaElectronica(ped)"
+                    >
+                      <svg class="icon-sm" viewBox="0 0 24 24">
+                        <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                        <path d="M14 8H8" />
+                        <path d="M16 12H8" />
+                        <path d="M13 16H8" />
+                      </svg>
+                      <span>Boleta Electrónica</span>
+                    </button>
+                  }
 
                   @if (ped.estado === 'NUEVO') {
                     <button
@@ -873,14 +875,16 @@
                           >
                             PIN: {{ ped.pinEntrega || '2026' }}
                           </span>
-                          <button
-                            type="button"
-                            class="chip-mini"
-                            (click)="abrirBoletaElectronica(ped)"
-                            title="Ver Boleta Electrónica SUNAT"
-                          >
-                            Boleta
-                          </button>
+                          @if (ped.estadoPago === 'PAGADO' && ped.estado !== 'CANCELADO') {
+                            <button
+                              type="button"
+                              class="chip-mini"
+                              (click)="abrirBoletaElectronica(ped)"
+                              title="Ver Boleta Electrónica SUNAT"
+                            >
+                              Boleta
+                            </button>
+                          }
                         </div>
                         <div style="font-size: 0.84rem; font-weight: 700; margin-top: 2px;">
                           {{ ped.nombreCliente || 'Cliente #' + ped.clienteId }}
@@ -984,7 +988,8 @@
                       <button
                         type="button"
                         class="action-pill"
-                        [disabled]="ped.estado !== 'NUEVO'"
+                        [disabled]="ped.estado !== 'NUEVO' || ped.estadoPago !== 'PAGADO'"
+                        title="Requiere pago verificado para pasar a Cocina"
                         (click)="actualizarEstadoPedido(ped, { estado: 'EN_PREPARACION' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -996,7 +1001,8 @@
                       <button
                         type="button"
                         class="action-pill amber"
-                        [disabled]="ped.estado !== 'NUEVO' && ped.estado !== 'EN_PREPARACION'"
+                        [disabled]="ped.estado !== 'EN_PREPARACION'"
+                        title="Solo disponible cuando el pedido está en Cocina"
                         (click)="actualizarEstadoPedido(ped, { estado: 'LISTO' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -1009,7 +1015,8 @@
                       <button
                         type="button"
                         class="action-pill green"
-                        [disabled]="ped.estado === 'ENTREGADO' || ped.estado === 'CANCELADO'"
+                        [disabled]="ped.estado !== 'LISTO'"
+                        title="Solo se puede entregar cuando el pedido está LISTO en barra"
                         (click)="actualizarEstadoPedido(ped, { estado: 'ENTREGADO', estadoPago: 'PAGADO' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -1124,7 +1131,13 @@
                     <button type="button" class="action-pill" (click)="abrirModalEditarUsuario(u)">
                       Editar
                     </button>
-                    <button type="button" class="action-pill red" (click)="eliminarUsuarioAdmin(u)">
+                    <button
+                      type="button"
+                      class="action-pill red"
+                      [disabled]="u.codigo === 'ADMIN' || u.codigo === sesion()?.codigo"
+                      title="La cuenta administradora activa está protegida"
+                      (click)="eliminarUsuarioAdmin(u)"
+                    >
                       Eliminar
                     </button>
                   </div>
@@ -1460,7 +1473,7 @@
               type="button"
               class="btn-emitir"
               [disabled]="cargando()"
-              (click)="confirmarPedido()"
+              (click)="confirmarPedidoConReferenciaManual()"
             >
               EMITIR CON N° DE OPERACIÓN
             </button>
@@ -1618,6 +1631,37 @@
           </button>
           <button type="button" class="tab-arc-btn" (click)="pedidoBoletaActiva.set(null)">
             Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL CONFIRMACIÓN DE ELIMINACIÓN (PRODUCTO / USUARIO) ==================== -->
+  @if (registroPorEliminar(); as regElim) {
+    <div class="modal-overlay" (click)="registroPorEliminar.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">CONFIRMACIÓN DE SEGURIDAD</span>
+        <h3 style="margin: 8px 0 6px;">¿Eliminar {{ regElim.etiqueta }}?</h3>
+        <p style="font-size: 0.84rem; color: var(--muted); margin-bottom: 14px; line-height: 1.45;">
+          Esta acción eliminará el registro de la base de datos MySQL si no posee comandas
+          contables asociadas.
+        </p>
+
+        <div style="display: flex; gap: 10px; margin-top: 16px;">
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="confirmarEliminacionRegistro()"
+          >
+            CONFIRMAR ELIMINACIÓN
+          </button>
+          <button
+            type="button"
+            class="tab-arc-btn"
+            (click)="registroPorEliminar.set(null)"
+          >
+            Cancelar
           </button>
         </div>
       </div>

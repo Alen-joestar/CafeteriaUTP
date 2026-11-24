@@ -72,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
 
                         .requestMatchers(HttpMethod.GET, "/api/productos", "/api/productos/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/monitor-barra").permitAll()
 
                         .requestMatchers("/api/usuarios", "/api/usuarios/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.POST, "/api/productos", "/api/productos/**").hasRole("CAFETERIA")

@@ -209,17 +209,29 @@ export class App implements OnInit, OnDestroy {
 
   // Pedidos, Tiempo Estimado Dinámico, Escáner de Barra y Arqueo de Caja
   pedidos = signal<Pedido[]>([]);
+  monitorBarraPublico = signal<
+    { id: number; codigo: string; nombreCliente: string; codigoCliente: string; horarioRecojo: string }[]
+  >([]);
   subVistaMisPedidos = signal<'EN_CURSO' | 'HISTORIAL'>('EN_CURSO');
   filtroEstadoPedido = signal<string>('EN_CURSO');
   pedidoPorCancelar = signal<Pedido | null>(null);
+  registroPorEliminar = signal<{
+    tipo: 'PRODUCTO' | 'USUARIO';
+    id: number;
+    etiqueta: string;
+  } | null>(null);
   fechaRecaudacion = new Date().toISOString().slice(0, 10);
   totalRecaudadoDia = signal<number>(0);
   arqueoDetalle = signal<ArqueoCajaResponse | null>(null);
   inputPinBarra = '';
 
-  pedidosListosEnBarra = computed(() =>
-    this.pedidos().filter((p) => p.estado === 'LISTO')
-  );
+  pedidosListosEnBarra = computed(() => {
+    const propiosListos = this.pedidos().filter((p) => p.estado === 'LISTO');
+    if (propiosListos.length > 0) {
+      return propiosListos;
+    }
+    return this.monitorBarraPublico() as unknown as Pedido[];
+  });
 
   pedidosEnCurso = computed(() =>
     [...this.pedidos()]
@@ -289,6 +301,7 @@ export class App implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.restaurarSesion();
     this.cargarProductos();
+    this.cargarMonitorBarra();
     if (this.estaAutenticado()) {
       this.cargarPedidos(true);
       if (this.esCafeteria()) {
@@ -306,6 +319,7 @@ export class App implements OnInit, OnDestroy {
 
   private iniciarPollingTiempoReal(): void {
     this.pollingTimer = setInterval(() => {
+      this.cargarMonitorBarra();
       if (this.estaAutenticado()) {
         this.cargarPedidos(false);
         if (this.esCafeteria() && this.vistaActiva() === 'ADMIN') {
@@ -313,6 +327,13 @@ export class App implements OnInit, OnDestroy {
         }
       }
     }, 6000);
+  }
+
+  cargarMonitorBarra(): void {
+    this.api.listarMonitorBarra().subscribe({
+      next: (lista) => this.monitorBarraPublico.set(lista),
+      error: () => {}
+    });
   }
 
   private restaurarSesion(): void {
@@ -473,8 +494,9 @@ export class App implements OnInit, OnDestroy {
   }
 
   actualizarCodigoRegistro(codigo: string): void {
-    this.regCodigo = codigo;
-    const limpio = codigo.trim().toLowerCase();
+    const sinEspacios = codigo.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+    this.regCodigo = sinEspacios;
+    const limpio = sinEspacios.toLowerCase();
     this.regCorreo = limpio ? `${limpio}@utp.edu.pe` : '';
   }
 
@@ -558,6 +580,7 @@ export class App implements OnInit, OnDestroy {
     this.sesion.set(null);
     this.pedidos.set([]);
     this.estadosPreviosPedidos.clear();
+    this.vaciarCarrito();
     this.vistaActiva.set('CATALOGO');
     this.mostrarMensaje('exito', 'Has cerrado sesión correctamente');
   }
@@ -683,6 +706,18 @@ export class App implements OnInit, OnDestroy {
   procesarPagoInstantaneoUtpPay(): void {
     const sufijo = Math.floor(100000 + Math.random() * 900000);
     this.referenciaPago = `UTPPAY-${this.metodoPago}-${sufijo}`;
+    this.confirmarPedido();
+  }
+
+  confirmarPedidoConReferenciaManual(): void {
+    const ref = this.referenciaPago.trim();
+    if (!ref || ref.length < 6) {
+      this.mostrarMensaje(
+        'error',
+        'Ingresa un N° de operación válido de al menos 6 dígitos (o usa el botón de Pago con QR)'
+      );
+      return;
+    }
     this.confirmarPedido();
   }
 
@@ -991,19 +1026,61 @@ export class App implements OnInit, OnDestroy {
     });
   }
 
-  eliminarProductoAdmin(p: Producto): void {
+  solicitarEliminarProducto(p: Producto): void {
     if (!p.id) return;
-    this.api.eliminarProducto(p.id).subscribe({
-      next: () => {
-        this.cargarProductos();
-        this.mostrarMensaje('exito', `Producto "${p.nombre}" eliminado`);
-      },
-      error: (err) =>
-        this.mostrarMensaje(
-          'error',
-          err?.error?.error || 'No se puede eliminar un producto asociado a pedidos'
-        )
+    this.registroPorEliminar.set({
+      tipo: 'PRODUCTO',
+      id: p.id,
+      etiqueta: `Plato "${p.nombre}"`
     });
+  }
+
+  solicitarEliminarUsuario(u: Usuario): void {
+    if (!u.id) return;
+    if (u.codigo?.toUpperCase() === 'ADMIN' || u.codigo === this.sesion()?.codigo) {
+      this.mostrarMensaje('error', 'No puedes eliminar la cuenta administradora activa');
+      return;
+    }
+    this.registroPorEliminar.set({
+      tipo: 'USUARIO',
+      id: u.id,
+      etiqueta: `Usuario ${u.codigo} (${u.nombreCompleto})`
+    });
+  }
+
+  confirmarEliminacionRegistro(): void {
+    const reg = this.registroPorEliminar();
+    if (!reg) return;
+    this.registroPorEliminar.set(null);
+    if (reg.tipo === 'PRODUCTO') {
+      this.api.eliminarProducto(reg.id).subscribe({
+        next: () => {
+          this.cargarProductos();
+          this.mostrarMensaje('exito', `${reg.etiqueta} eliminado`);
+        },
+        error: (err) =>
+          this.mostrarMensaje(
+            'error',
+            err?.error?.error || 'No se puede eliminar un producto asociado a pedidos'
+          )
+      });
+    } else {
+      this.api.eliminarUsuario(reg.id).subscribe({
+        next: () => {
+          this.cargarUsuarios();
+          this.mostrarMensaje('exito', `${reg.etiqueta} eliminado`);
+        },
+        error: (err) =>
+          this.mostrarMensaje(
+            'error',
+            err?.error?.error || 'No se puede eliminar un usuario con pedidos registrados'
+          )
+      });
+    }
+  }
+
+  eliminarProductoAdmin(p: Producto): void {
+    this.solicitarEliminarProducto(p);
   }
 
   // ================= ADMIN: CRUD USUARIOS =================
@@ -1059,17 +1136,6 @@ export class App implements OnInit, OnDestroy {
   }
 
   eliminarUsuarioAdmin(u: Usuario): void {
-    if (!u.id) return;
-    this.api.eliminarUsuario(u.id).subscribe({
-      next: () => {
-        this.cargarUsuarios();
-        this.mostrarMensaje('exito', `Usuario ${u.codigo} eliminado`);
-      },
-      error: (err) =>
-        this.mostrarMensaje(
-          'error',
-          err?.error?.error || 'No se puede eliminar un usuario con pedidos registrados'
-        )
-    });
+    this.solicitarEliminarUsuario(u);
   }
 }

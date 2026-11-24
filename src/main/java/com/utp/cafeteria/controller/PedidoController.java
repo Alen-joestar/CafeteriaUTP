@@ -42,6 +42,21 @@ public class PedidoController {
         return service.listar(estado, esCafeteria(authentication) ? clienteId : usuarioId(authentication));
     }
 
+    @GetMapping("/monitor-barra")
+    public List<Map<String, Object>> monitorBarraPublico() {
+        return service.listar("LISTO", null).stream()
+                .map(p -> {
+                    Map<String, Object> item = new java.util.LinkedHashMap<>();
+                    item.put("id", p.getId());
+                    item.put("codigo", p.getCodigo());
+                    item.put("nombreCliente", p.getNombreCliente() != null ? p.getNombreCliente() : "Estudiante");
+                    item.put("codigoCliente", p.getCodigoCliente() != null ? p.getCodigoCliente() : "");
+                    item.put("horarioRecojo", p.getHorarioRecojo() != null ? p.getHorarioRecojo() : "INMEDIATO");
+                    return item;
+                })
+                .toList();
+    }
+
     @GetMapping("/recaudacion")
     public ResponseEntity<Map<String, Object>> recaudacion(
             @RequestParam(required = false) String fecha) {
