@@ -68,7 +68,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/registro").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/registro", "/api/auth/sso-utp").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
 
                         .requestMatchers(HttpMethod.GET, "/api/productos", "/api/productos/**").permitAll()
@@ -78,6 +78,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.DELETE, "/api/productos/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.GET, "/api/pedidos/recaudacion").hasRole("CAFETERIA")
+                        .requestMatchers(HttpMethod.POST, "/api/pedidos/validar-entrega").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.PUT, "/api/pedidos/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.DELETE, "/api/pedidos/**").hasRole("CAFETERIA")
 

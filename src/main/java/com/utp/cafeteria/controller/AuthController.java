@@ -80,4 +80,38 @@ public class AuthController {
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @PostMapping("/sso-utp")
+    public ResponseEntity<LoginResponse> loginSsoInstitucional(@RequestBody java.util.Map<String, String> body) {
+        String correoRaw = body.getOrDefault("correo", "").trim().toLowerCase();
+        String nombreRaw = body.getOrDefault("nombreCompleto", "").trim();
+        if (correoRaw.isEmpty() || !correoRaw.endsWith("@utp.edu.pe")) {
+            throw new IllegalArgumentException("Debes ingresar un correo institucional válido con dominio @utp.edu.pe");
+        }
+        String codigoExtraido = correoRaw.substring(0, correoRaw.indexOf('@')).toUpperCase();
+        Usuario usuario = usuarios.buscarPorIdentificador(correoRaw)
+                .or(() -> usuarios.buscarPorIdentificador(codigoExtraido))
+                .orElseGet(() -> {
+                    String nombre = nombreRaw.isEmpty() ? "Estudiante UTP (" + codigoExtraido + ")" : nombreRaw;
+                    Usuario nuevo = new Usuario(
+                            null,
+                            codigoExtraido,
+                            correoRaw,
+                            nombre,
+                            "CafeAdmin2026",
+                            "ESTUDIANTE");
+                    return usuarioService.registrar(nuevo);
+                });
+
+        String token = jwtService.generarToken(usuario.getCodigo(), usuario.getRol());
+        LoginResponse response = new LoginResponse(
+                token,
+                "Bearer",
+                usuario.getId(),
+                usuario.getCodigo(),
+                usuario.getCorreo(),
+                usuario.getNombreCompleto(),
+                usuario.getRol());
+        return ResponseEntity.ok(response);
+    }
 }

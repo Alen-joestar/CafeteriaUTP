@@ -147,7 +147,7 @@
               <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" />
               <circle cx="16.5" cy="7.5" r=".5" />
             </svg>
-            <span>Ingresar / Registrarse</span>
+            <span>Ingresar / SSO UTP</span>
           </button>
         </div>
       }
@@ -156,7 +156,7 @@
 
   <!-- ==================== COLUMNA 2: ESCENARIO CENTRAL ==================== -->
   <main class="center-stage">
-    <!-- Monitor de Pedidos Listos en Barra (En Vivo) -->
+    <!-- Monitor de Pedidos Listos en Barra (En Vivo + Campana Sonora) -->
     <div class="barra-monitor">
       <div class="barra-label">
         <span class="pulse-dot"></span>
@@ -166,22 +166,36 @@
           <path d="M4 2C2.8 3.7 2 5.7 2 8" />
           <path d="M22 8c0-2.3-.8-4.3-2-6" />
         </svg>
-        <span>LISTOS EN BARRA PARA RECOGER:</span>
+        <span>LISTOS EN BARRA PARA RECOGER (EN VIVO):</span>
       </div>
-      <div class="ready-pills">
+      <div class="ready-pills" style="align-items: center;">
         @for (listo of pedidosListosEnBarra(); track listo.id) {
-          <span class="ready-code">
+          <span class="ready-code" (click)="pedidoQrActiva.set(listo)" style="cursor: pointer;" title="Ver QR de recojo">
             <svg class="icon-sm" viewBox="0 0 24 24">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <path d="m9 11 3 3L22 4" />
             </svg>
-            <span>{{ listo.codigo }} ({{ listo.nombreCliente || listo.codigoCliente || 'Cliente' }})</span>
+            <span>
+              {{ listo.codigo }} ({{ listo.nombreCliente || listo.codigoCliente || 'Cliente' }})
+              @if (listo.pinEntrega) {
+                · PIN {{ listo.pinEntrega }}
+              }
+            </span>
           </span>
         } @empty {
           <span class="font-mono" style="font-size: 0.74rem; color: var(--muted);">
             Ningún pedido pendiente en barra
           </span>
         }
+        <button
+          type="button"
+          class="chip-mini"
+          [class.active]="alertasSonorasActivas()"
+          (click)="alertasSonorasActivas.set(!alertasSonorasActivas()); reproducirCampanaSonora('listo')"
+          title="Activar/Desactivar alerta sonora de barra"
+        >
+          {{ alertasSonorasActivas() ? 'Campana ON' : 'Campana OFF' }}
+        </button>
       </div>
     </div>
 
@@ -194,17 +208,17 @@
               <svg class="icon-sm" viewBox="0 0 24 24">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
-              <span>ATENCIÓN UNIVERSITARIA SIN COLAS</span>
+              <span>ATENCIÓN UNIVERSITARIA SIN COLAS · UTP PAY & QR</span>
             </span>
             <h2>Platos recién hechos, directo a tu ticket digital.</h2>
             <p>
-              Selecciona tus sándwiches, antojitos, bebidas o postres. Tu orden genera un boleto
-              único para recoger en barra.
+              Selecciona tus platos, personaliza tus cremas, programa tu hora de recreo y recoge en
+              barra presentando tu código QR o PIN de seguridad.
             </p>
           </div>
-          <div class="hero-circle-stat">
-            <strong>~5m</strong>
-            <span>ENTREGA EN BARRA</span>
+          <div class="hero-circle-stat" title="Calculado en vivo según la cola actual en cocina">
+            <strong>~{{ tiempoEstimadoMinutos() }}m</strong>
+            <span>TIEMPO EN BARRA</span>
           </div>
         </div>
 
@@ -325,26 +339,26 @@
       </section>
     }
 
-    <!-- ==================== VISTA 02: MIS PEDIDOS (STEPPER INTERACTIVO) ==================== -->
+    <!-- ==================== VISTA 02: MIS PEDIDOS (STEPPER + QR + PIN + BOLETA SUNAT) ==================== -->
     @if (vistaActiva() === 'MIS_PEDIDOS') {
       <section>
         <div
           style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;"
         >
           <div>
-            <h2 style="font-size: 1.7rem;">02 / Boletos de Pedido & Seguimiento</h2>
+            <h2 style="font-size: 1.7rem;">02 / Boletos Digitales, QR de Barra & Seguimiento</h2>
             <p style="color: var(--muted); font-size: 0.88rem;">
-              Sigue en tiempo real las 4 etapas de preparación de tu orden.
+              Sincronización automática cada 6s con alerta sonora. Presenta tu QR o PIN de 4 dígitos al recoger.
             </p>
           </div>
-          <button type="button" class="tab-arc-btn" (click)="cargarPedidos()">
+          <button type="button" class="tab-arc-btn" (click)="cargarPedidos(true)">
             <svg class="icon-sm" viewBox="0 0 24 24">
               <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
               <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
               <path d="M16 16h5v5" />
             </svg>
-            <span>Actualizar Estado</span>
+            <span>Sincronizar Ahora</span>
           </button>
         </div>
 
@@ -352,19 +366,40 @@
           @for (ped of pedidosFiltrados(); track ped.id) {
             <article class="ticket-order-card">
               <div
-                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"
+                style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;"
               >
-                <div>
-                  <span class="font-mono" style="font-size: 1.1rem; font-weight: 700;">
-                    BOLETO #{{ ped.codigo }}
-                  </span>
-                  <span class="font-mono" style="font-size: 0.76rem; color: var(--muted); margin-left: 10px;">
-                    {{ ped.fechaRegistro }}
-                    @if (ped.nombreCliente) {
-                      · {{ ped.nombreCliente }} ({{ ped.codigoCliente }})
+                <div style="display: flex; align-items: center; gap: 14px;">
+                  <!-- Mini Código QR Vectorial Único del Boleto -->
+                  <div
+                    class="qr-mini-box"
+                    style="cursor: pointer;"
+                    title="Clic para ampliar QR de entrega en barra"
+                    (click)="pedidoQrActiva.set(ped)"
+                  >
+                    @for (bit of generarMatrizQr(ped.codigo + (ped.pinEntrega || '')); track $index) {
+                      <span class="qr-cell" [class.filled]="bit"></span>
                     }
-                  </span>
+                  </div>
+                  <div>
+                    <span class="font-mono" style="font-size: 1.1rem; font-weight: 700;">
+                      BOLETO #{{ ped.codigo }}
+                    </span>
+                    <span
+                      class="ready-code"
+                      style="background: #FDE047; color: var(--ink); margin-left: 8px; font-size: 0.72rem;"
+                    >
+                      PIN BARRA: {{ ped.pinEntrega || '2026' }}
+                    </span>
+                    <div class="font-mono" style="font-size: 0.74rem; color: var(--muted); margin-top: 3px;">
+                      {{ ped.fechaRegistro }}
+                      · Recojo: <strong>{{ ped.horarioRecojo || 'INMEDIATO' }}</strong>
+                      @if (ped.nombreCliente) {
+                        · {{ ped.nombreCliente }} ({{ ped.codigoCliente }})
+                      }
+                    </div>
+                  </div>
                 </div>
+
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <span class="ready-code" style="background: var(--ink);">
                     {{ ped.metodoPago }} · {{ ped.estadoPago }}
@@ -438,7 +473,19 @@
                     <strong>S/ {{ item.subtotal | number: '1.2-2' }}</strong>
                   </div>
                 }
+                @if (ped.montoExtras && ped.montoExtras > 0) {
+                  <div class="receipt-row" style="color: var(--utp-red);">
+                    <span><strong>+ Adicionales / Extras</strong></span>
+                    <strong>S/ {{ ped.montoExtras | number: '1.2-2' }}</strong>
+                  </div>
+                }
               </div>
+
+              @if (ped.cremasYExtras) {
+                <p class="font-mono" style="font-size: 0.74rem; color: var(--ink); background: #F5F2EB; padding: 6px 10px; margin-bottom: 6px;">
+                  Personalización: {{ ped.cremasYExtras }}
+                </p>
+              }
 
               @if (ped.mensaje) {
                 <p class="font-mono" style="font-size: 0.75rem; color: var(--muted); margin-bottom: 10px;">
@@ -446,24 +493,61 @@
                 </p>
               }
 
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; flex-wrap: wrap; gap: 10px;">
                 <strong class="font-mono" style="font-size: 1.02rem;">
                   TOTAL: S/ {{ ped.total | number: '1.2-2' }}
+                  @if (ped.referenciaPago) {
+                    <small style="color: var(--muted); font-size: 0.72rem; margin-left: 6px;">
+                      (Ref: {{ ped.referenciaPago }})
+                    </small>
+                  }
                 </strong>
-                @if (ped.estado === 'NUEVO') {
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <button
                     type="button"
-                    class="action-pill red"
-                    (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                    class="action-pill"
+                    (click)="pedidoQrActiva.set(ped)"
                   >
                     <svg class="icon-sm" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="m15 9-6 6" />
-                      <path d="m9 9 6 6" />
+                      <rect width="5" height="5" x="3" y="3" rx="1" />
+                      <rect width="5" height="5" x="16" y="3" rx="1" />
+                      <rect width="5" height="5" x="3" y="16" rx="1" />
+                      <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+                      <path d="M12 7v3a2 2 0 0 1-2 2H7" />
                     </svg>
-                    <span>Cancelar Orden</span>
+                    <span>Mostrar QR / PIN</span>
                   </button>
-                }
+
+                  <button
+                    type="button"
+                    class="action-pill"
+                    (click)="abrirBoletaElectronica(ped)"
+                  >
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                      <path d="M14 8H8" />
+                      <path d="M16 12H8" />
+                      <path d="M13 16H8" />
+                    </svg>
+                    <span>Boleta Electrónica</span>
+                  </button>
+
+                  @if (ped.estado === 'NUEVO') {
+                    <button
+                      type="button"
+                      class="action-pill red"
+                      (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                    >
+                      <svg class="icon-sm" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="m15 9-6 6" />
+                        <path d="m9 9 6 6" />
+                      </svg>
+                      <span>Cancelar Orden</span>
+                    </button>
+                  }
+                </div>
               </div>
             </article>
           } @empty {
@@ -488,9 +572,9 @@
           style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;"
         >
           <div>
-            <h2 style="font-size: 1.7rem;">03 / Control de Caja, Cocina y Catálogo</h2>
+            <h2 style="font-size: 1.7rem;">03 / Control de Caja, Cocina, Escáner QR y Arqueo</h2>
             <p style="color: var(--muted); font-size: 0.88rem;">
-              Cambia estados de pedidos en un clic y administra productos o usuarios.
+              Valida entregas por PIN/QR, gestiona comandas en tiempo real y exporta el cierre de caja.
             </p>
           </div>
           <div class="admin-subtabs">
@@ -593,9 +677,73 @@
           </div>
         </div>
 
+        <!-- Franja de Arqueo de Caja por Canal (Yape/Plin/Tarjeta), Top Platos y Exportación Excel CSV -->
+        <div class="arqueo-strip">
+          <div class="font-mono" style="font-size: 0.75rem; display: flex; gap: 14px; flex-wrap: wrap;">
+            <span>
+              <strong>YAPE:</strong> S/ {{ arqueoDetalle()?.totalYape || 0 | number: '1.2-2' }}
+            </span>
+            <span>
+              <strong>PLIN:</strong> S/ {{ arqueoDetalle()?.totalPlin || 0 | number: '1.2-2' }}
+            </span>
+            <span>
+              <strong>TARJETA:</strong> S/ {{ arqueoDetalle()?.totalTarjeta || 0 | number: '1.2-2' }}
+            </span>
+            @if (arqueoDetalle()?.topPlatos?.length) {
+              <span style="color: var(--utp-red);">
+                <strong>TOP VENTAS:</strong>
+                @for (tp of arqueoDetalle()!.topPlatos!; track tp.nombre) {
+                  {{ tp.nombre }} ({{ tp.cantidad }}u)
+                }
+              </span>
+            }
+          </div>
+
+          <button type="button" class="action-pill green" (click)="exportarArqueoCsv()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Exportar Arqueo (.CSV / Excel)</span>
+          </button>
+        </div>
+
         <!-- SUB-VISTA ADMIN 1: COMANDAS ACTIVAS EN GRILLA DE 2 COLUMNAS -->
         @if (subVistaAdmin() === 'PEDIDOS') {
           <div>
+            <!-- Barra de Escáner / Validador Rápido de Entrega por PIN o QR en Barra -->
+            <div class="scanner-bar">
+              <div class="font-mono" style="font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <svg class="icon-sm" viewBox="0 0 24 24">
+                  <rect width="5" height="5" x="3" y="3" rx="1" />
+                  <rect width="5" height="5" x="16" y="3" rx="1" />
+                  <rect width="5" height="5" x="3" y="16" rx="1" />
+                  <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+                </svg>
+                <span>ENTREGA RÁPIDA EN BARRA (ESCÁNER QR / PIN):</span>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <input
+                  type="text"
+                  class="scanner-input"
+                  placeholder="Ingresa PIN (4 dígitos) o #CAF-XXXX..."
+                  [(ngModel)]="inputPinBarra"
+                  (keyup.enter)="validarEntregaPorPinEnBarra()"
+                />
+                <button
+                  type="button"
+                  class="action-pill green"
+                  (click)="validarEntregaPorPinEnBarra()"
+                >
+                  <svg class="icon-sm" viewBox="0 0 24 24">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  <span>Validar y Entregar</span>
+                </button>
+              </div>
+            </div>
+
             <div
               style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;"
             >
@@ -662,13 +810,29 @@
                       style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 10px;"
                     >
                       <div>
-                        <strong class="font-mono" style="font-size: 1.02rem;">#{{ ped.codigo }}</strong>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <strong class="font-mono" style="font-size: 1.02rem;">#{{ ped.codigo }}</strong>
+                          <span
+                            class="ready-code"
+                            style="background: #FDE047; color: var(--ink); font-size: 0.66rem; padding: 2px 8px;"
+                          >
+                            PIN: {{ ped.pinEntrega || '2026' }}
+                          </span>
+                          <button
+                            type="button"
+                            class="chip-mini"
+                            (click)="abrirBoletaElectronica(ped)"
+                            title="Ver Boleta Electrónica SUNAT"
+                          >
+                            Boleta
+                          </button>
+                        </div>
                         <div style="font-size: 0.84rem; font-weight: 700; margin-top: 2px;">
                           {{ ped.nombreCliente || 'Cliente #' + ped.clienteId }}
                           ({{ ped.codigoCliente || 'ID: ' + ped.clienteId }})
                         </div>
                         <small class="font-mono" style="color: var(--muted); font-size: 0.7rem;">
-                          {{ ped.fechaRegistro }}
+                          {{ ped.fechaRegistro }} · Recojo: <strong>{{ ped.horarioRecojo || 'INMEDIATO' }}</strong>
                           @if (ped.referenciaPago) {
                             · Ref: {{ ped.referenciaPago }}
                           }
@@ -687,14 +851,29 @@
                       </div>
                     </div>
 
-                    <div style="margin-bottom: 12px;">
+                    <div style="margin-bottom: 10px;">
                       @for (item of ped.items; track $index) {
                         <div class="receipt-row">
                           <span><strong>{{ item.cantidad }}x</strong> {{ item.nombreProducto }}</span>
                           <strong>S/ {{ item.subtotal | number: '1.2-2' }}</strong>
                         </div>
                       }
+                      @if (ped.montoExtras && ped.montoExtras > 0) {
+                        <div class="receipt-row" style="color: var(--utp-red);">
+                          <span><strong>+ Extras pagados</strong></span>
+                          <strong>S/ {{ ped.montoExtras | number: '1.2-2' }}</strong>
+                        </div>
+                      }
                     </div>
+
+                    @if (ped.cremasYExtras) {
+                      <div
+                        class="font-mono"
+                        style="font-size: 0.71rem; color: var(--ink); background: #EFECE6; padding: 5px 9px; margin-bottom: 6px;"
+                      >
+                        {{ ped.cremasYExtras }}
+                      </div>
+                    }
 
                     @if (ped.mensaje) {
                       <div
@@ -939,16 +1118,53 @@
           </div>
         } @empty {
           <div
-            style="text-align: center; padding: 36px 10px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.76rem;"
+            style="text-align: center; padding: 28px 10px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.76rem;"
           >
             [ TICKET VACÍO ]<br />Selecciona platos de la carta
+          </div>
+        }
+
+        @if (carrito().length > 0) {
+          <!-- Personalización Estructurada: Cremas Gratis y Extras con Precio -->
+          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line);">
+            <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
+              CREMAS (GRATIS):
+            </div>
+            <div class="chip-group">
+              @for (c of cremasDisponibles; track c) {
+                <button
+                  type="button"
+                  class="chip-mini"
+                  [class.active]="cremasSeleccionadas().includes(c)"
+                  (click)="toggleCrema(c)"
+                >
+                  {{ c }}
+                </button>
+              }
+            </div>
+
+            <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
+              ADICIONALES / EXTRAS:
+            </div>
+            <div class="chip-group">
+              @for (ex of extrasDisponibles; track ex.id) {
+                <button
+                  type="button"
+                  class="chip-mini"
+                  [class.active]="extrasSeleccionados().includes(ex.id)"
+                  (click)="toggleExtra(ex.id)"
+                >
+                  {{ ex.nombre }} (S/ {{ ex.precio | number: '1.2-2' }})
+                </button>
+              }
+            </div>
           </div>
         }
       </div>
 
       <div class="receipt-pay-box">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span class="font-mono" style="font-size: 0.72rem; font-weight: 700;">MÉTODO DE PAGO:</span>
+          <span class="font-mono" style="font-size: 0.7rem; font-weight: 700;">HORARIO RECOJO:</span>
           <button
             type="button"
             (click)="vaciarCarrito()"
@@ -957,6 +1173,12 @@
             [Vaciar]
           </button>
         </div>
+
+        <select class="receipt-input" [(ngModel)]="horarioRecojo" style="margin-top: 4px;">
+          @for (h of horariosDisponibles; track h) {
+            <option [value]="h">{{ h }}</option>
+          }
+        </select>
 
         <div class="pay-selector">
           @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
@@ -974,18 +1196,12 @@
         <input
           type="text"
           class="receipt-input"
-          placeholder="N° Operación / Referencia (opc.)"
-          [(ngModel)]="referenciaPago"
-        />
-        <input
-          type="text"
-          class="receipt-input"
-          placeholder="Nota cocina: ej. sin cremas..."
+          placeholder="Nota cocina: ej. poca sal, bien caliente..."
           [(ngModel)]="mensajePedido"
         />
 
         <div
-          style="display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0;"
+          style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
           class="font-mono"
         >
           <span style="font-size: 0.82rem; font-weight: 700;">TOTAL TICKET:</span>
@@ -998,9 +1214,9 @@
           type="button"
           class="btn-emitir"
           [disabled]="cargando()"
-          (click)="confirmarPedido()"
+          (click)="abrirPasarelaOPedir()"
         >
-          <span>EMITIR ORDEN A COCINA</span>
+          <span>PAGAR CON UTP PAY & EMITIR</span>
           <svg class="icon-sm" viewBox="0 0 24 24">
             <path d="M5 12h14" />
             <path d="m12 5 7 7-7 7" />
@@ -1011,11 +1227,231 @@
     </div>
   </aside>
 
-  <!-- ==================== MODAL LOGIN / REGISTRO ==================== -->
+  <!-- ==================== MODAL PASARELA INTERACTIVA "UTP PAY" ==================== -->
+  @if (mostrarModalPasarela()) {
+    <div class="modal-overlay" (click)="mostrarModalPasarela.set(false)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag" style="margin-bottom: 8px;">
+          PASARELA SEGURA · UTP PAY ({{ metodoPago }})
+        </span>
+        <h3 style="margin-bottom: 6px;">
+          Total a Pagar: S/ {{ totalMontoCarrito() | number: '1.2-2' }}
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 14px;">
+          Horario de recojo: <strong>{{ horarioRecojo }}</strong>
+          @if (resumenCremasYExtras()) {
+            <br />{{ resumenCremasYExtras() }}
+          }
+        </p>
+
+        @if (metodoPago === 'YAPE' || metodoPago === 'PLIN') {
+          <div
+            style="background: var(--bg-warm); border: 1.5px dashed var(--ink); padding: 16px; text-align: center; margin-bottom: 14px;"
+          >
+            <div class="font-mono" style="font-size: 0.74rem; font-weight: 700; margin-bottom: 8px;">
+              QR DINÁMICO {{ metodoPago }} · CAFETERÍA UTP S.A.C.
+            </div>
+            <div class="qr-mini-box qr-lg" style="margin: 0 auto 10px;">
+              @for (bit of generarMatrizQr(metodoPago + totalMontoCarrito()); track $index) {
+                <span class="qr-cell" [class.filled]="bit"></span>
+              }
+            </div>
+            <div style="margin-top: 8px;">
+              <button
+                type="button"
+                class="btn-emitir"
+                style="background: var(--green); margin-bottom: 8px;"
+                [disabled]="cargando()"
+                (click)="simularPagoInstantaneoUtpPay()"
+              >
+                <span>SIMULAR PAGO INSTANTÁNEO {{ metodoPago }} (APROBADO)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label>O ingresa N° de Operación manual (Validación Antifraude):</label>
+            <input
+              type="text"
+              placeholder="Ej. 948201 (No se permiten códigos repetidos)"
+              [(ngModel)]="referenciaPago"
+            />
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button
+              type="button"
+              class="btn-emitir"
+              [disabled]="cargando()"
+              (click)="confirmarPedido()"
+            >
+              EMITIR CON REFERENCIA MANUAL
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="mostrarModalPasarela.set(false)">
+              Cancelar
+            </button>
+          </div>
+        } @else {
+          <!-- Simulación de Tarjeta Visa / Mastercard -->
+          <div class="field-group">
+            <label>Número de Tarjeta (Simulación)</label>
+            <input type="text" [(ngModel)]="tarjetaNumero" />
+          </div>
+          <div class="field-group">
+            <label>Titular</label>
+            <input type="text" [(ngModel)]="tarjetaTitular" />
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field-group">
+              <label>Vencimiento</label>
+              <input type="text" [(ngModel)]="tarjetaExp" />
+            </div>
+            <div class="field-group">
+              <label>CVV</label>
+              <input type="password" [(ngModel)]="tarjetaCvv" />
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <button
+              type="button"
+              class="btn-emitir"
+              style="background: var(--green);"
+              [disabled]="cargando()"
+              (click)="simularPagoInstantaneoUtpPay()"
+            >
+              PAGAR S/ {{ totalMontoCarrito() | number: '1.2-2' }} CON TARJETA
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="mostrarModalPasarela.set(false)">
+              Cancelar
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL VISOR DE QR Y PIN DE ENTREGA EN BARRA ==================== -->
+  @if (pedidoQrActiva(); as pedQr) {
+    <div class="modal-overlay" (click)="pedidoQrActiva.set(null)">
+      <div class="modal-dome" style="text-align: center;" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">PASE DE RECOJO EN BARRA · UTP</span>
+        <h3 style="margin: 8px 0 4px;">BOLETO #{{ pedQr.codigo }}</h3>
+        <p class="font-mono" style="font-size: 0.78rem; color: var(--muted); margin-bottom: 14px;">
+          Muestra este QR o dicta tu PIN de 4 dígitos en la barra de entrega
+        </p>
+
+        <div class="qr-mini-box qr-lg" style="margin: 0 auto 14px;">
+          @for (bit of generarMatrizQr(pedQr.codigo + (pedQr.pinEntrega || '')); track $index) {
+            <span class="qr-cell" [class.filled]="bit"></span>
+          }
+        </div>
+
+        <div
+          class="font-mono"
+          style="background: var(--ink); color: #FDE047; padding: 10px 18px; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 14px;"
+        >
+          PIN: {{ pedQr.pinEntrega || '2026' }}
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          @if (esCafeteria() && pedQr.estado !== 'ENTREGADO' && pedQr.estado !== 'CANCELADO') {
+            <button
+              type="button"
+              class="btn-emitir"
+              style="background: var(--green);"
+              (click)="validarEntregaPorPinEnBarra(pedQr.pinEntrega || pedQr.codigo); pedidoQrActiva.set(null)"
+            >
+              CONFIRMAR ENTREGA EN BARRA
+            </button>
+          }
+          <button type="button" class="tab-arc-btn" (click)="pedidoQrActiva.set(null)">
+            Cerrar Pase
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL BOLETA DE VENTA ELECTRÓNICA (SUNAT MOCK) ==================== -->
+  @if (pedidoBoletaActiva(); as bol) {
+    <div class="modal-overlay" (click)="pedidoBoletaActiva.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <div class="boleta-thermal">
+          <div style="text-align: center; border-bottom: 1px dashed var(--ink); padding-bottom: 10px; margin-bottom: 10px;">
+            <strong style="font-size: 0.9rem;">CONCESIONARIO CAFETERÍA UTP S.A.C.</strong><br />
+            <span>R.U.C. 20462509236 · SEDE PIURA</span><br />
+            <strong>BOLETA DE VENTA ELECTRÓNICA</strong><br />
+            <span>SERIE B001 - N° 000{{ bol.id }}</span>
+          </div>
+
+          <div style="margin-bottom: 10px; line-height: 1.45;">
+            <div><strong>FECHA EMISIÓN:</strong> {{ bol.fechaRegistro }}</div>
+            <div><strong>CLIENTE:</strong> {{ bol.nombreCliente || 'ESTUDIANTE UTP' }}</div>
+            <div><strong>CÓDIGO / DOC:</strong> {{ bol.codigoCliente || 'U2303001' }}</div>
+            <div><strong>BOLETO ORDEN:</strong> #{{ bol.codigo }} (PIN: {{ bol.pinEntrega || '2026' }})</div>
+            <div><strong>CANAL DE PAGO:</strong> {{ bol.metodoPago }} ({{ bol.estadoPago }})</div>
+            @if (bol.referenciaPago) {
+              <div><strong>REF. OPERACIÓN:</strong> {{ bol.referenciaPago }}</div>
+            }
+          </div>
+
+          <div style="border-top: 1px dashed var(--ink); border-bottom: 1px dashed var(--ink); padding: 8px 0; margin-bottom: 10px;">
+            @for (it of bol.items; track $index) {
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>{{ it.cantidad }}x {{ it.nombreProducto }}</span>
+                <strong>S/ {{ it.subtotal | number: '1.2-2' }}</strong>
+              </div>
+            }
+            @if (bol.montoExtras && bol.montoExtras > 0) {
+              <div style="display: flex; justify-content: space-between;">
+                <span>1x Adicionales / Extras</span>
+                <strong>S/ {{ bol.montoExtras | number: '1.2-2' }}</strong>
+              </div>
+            }
+          </div>
+
+          <div style="line-height: 1.5; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span>OP. GRAVADA (S/):</span>
+              <span>{{ calcularOpGravada(bol.total) | number: '1.2-2' }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>I.G.V. (18%):</span>
+              <span>{{ calcularIgv(bol.total) | number: '1.2-2' }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.92rem; font-weight: 700;">
+              <span>IMPORTE TOTAL:</span>
+              <span>S/ {{ bol.total | number: '1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div style="text-align: center;">
+            <div class="qr-mini-box" style="margin: 0 auto 6px;">
+              @for (bit of generarMatrizQr('SUNAT-B001-' + bol.codigo); track $index) {
+                <span class="qr-cell" [class.filled]="bit"></span>
+              }
+            </div>
+            <small>Representación impresa de la Boleta de Venta Electrónica</small>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 14px;">
+          <button type="button" class="btn-emitir" (click)="imprimirBoleta()">
+            IMPRIMIR / GUARDAR PDF
+          </button>
+          <button type="button" class="tab-arc-btn" (click)="pedidoBoletaActiva.set(null)">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL LOGIN / REGISTRO / SSO INSTITUCIONAL @utp.edu.pe ==================== -->
   @if (mostrarModalAuth()) {
     <div class="modal-overlay" (click)="mostrarModalAuth.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
-        <div class="auth-mode-switch">
+        <div class="auth-mode-switch" style="flex-wrap: wrap;">
           <button
             type="button"
             class="tab-arc-btn"
@@ -1027,10 +1463,18 @@
           <button
             type="button"
             class="tab-arc-btn"
+            [class.active]="modoAuth() === 'SSO'"
+            (click)="modoAuth.set('SSO')"
+          >
+            SSO @utp.edu.pe
+          </button>
+          <button
+            type="button"
+            class="tab-arc-btn"
             [class.active]="modoAuth() === 'REGISTRO'"
             (click)="modoAuth.set('REGISTRO')"
           >
-            Crear Cuenta Estudiante
+            Crear Cuenta
           </button>
         </div>
 
@@ -1078,6 +1522,57 @@
             <div style="display: flex; gap: 10px; margin-top: 16px;">
               <button type="submit" class="btn-emitir" [disabled]="cargando()">
                 INGRESAR
+              </button>
+              <button type="button" class="tab-arc-btn" (click)="mostrarModalAuth.set(false)">
+                Cerrar
+              </button>
+            </div>
+          </form>
+        } @else if (modoAuth() === 'SSO') {
+          <form (ngSubmit)="iniciarSesionSsoUtp()">
+            <span class="arch-hero-tag" style="background: var(--ink); margin-bottom: 8px;">
+              MICROSOFT 365 · IDENTIDAD INSTITUCIONAL UTP
+            </span>
+            <h3 style="margin-bottom: 6px;">Acceso Único con Correo @utp.edu.pe</h3>
+            <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 14px;">
+              Simulación de Single Sign-On (SSO) universitario sin costo externo. Valida tu dominio
+              institucional y emite tu sesión JWT al instante.
+            </p>
+
+            <div class="field-group">
+              <label>Correo Institucional (@utp.edu.pe)</label>
+              <input
+                type="email"
+                name="ssoCorreo"
+                placeholder="u2303001@utp.edu.pe"
+                [(ngModel)]="ssoCorreo"
+                required
+              />
+            </div>
+
+            <div class="field-group">
+              <label>Nombre del Estudiante</label>
+              <input
+                type="text"
+                name="ssoNombre"
+                placeholder="Ej. Carlos Pérez"
+                [(ngModel)]="ssoNombre"
+              />
+            </div>
+
+            <div class="demo-access-strip">
+              <span>Token Authenticator UTP simulado:</span>
+              <strong>CÓDIGO: {{ ssoPinSimulado }} (Verificado)</strong>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button
+                type="submit"
+                class="btn-emitir"
+                style="background: var(--green);"
+                [disabled]="cargando()"
+              >
+                CONTINUAR CON CUENTA @utp.edu.pe
               </button>
               <button type="button" class="tab-arc-btn" (click)="mostrarModalAuth.set(false)">
                 Cerrar

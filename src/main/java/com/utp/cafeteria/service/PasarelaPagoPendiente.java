@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 public class PasarelaPagoPendiente implements PasarelaPago {
     @Override
     public String procesar(String metodo, String referencia, double monto) {
+        if (referencia != null && referencia.trim().toUpperCase().startsWith("UTPPAY-")) {
+            return "PAGADO";
+        }
         return "PENDIENTE";
     }
 }

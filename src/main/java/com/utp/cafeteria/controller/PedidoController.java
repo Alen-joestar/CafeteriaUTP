@@ -46,10 +46,14 @@ public class PedidoController {
     public ResponseEntity<Map<String, Object>> recaudacion(
             @RequestParam(required = false) String fecha) {
         String fechaConsulta = (fecha == null || fecha.isBlank()) ? LocalDate.now().toString() : fecha.trim();
-        Double totalRecaudado = service.recaudacionPorFecha(fechaConsulta);
-        return ResponseEntity.ok(Map.of(
-                "fecha", fechaConsulta,
-                "totalRecaudado", totalRecaudado != null ? totalRecaudado : 0.0));
+        return ResponseEntity.ok(service.arqueoPorFecha(fechaConsulta));
+    }
+
+    @PostMapping("/validar-entrega")
+    public ResponseEntity<Pedido> validarEntrega(@RequestBody Map<String, String> body) {
+        String codigoOPin = body.getOrDefault("codigoOPin", "");
+        Pedido entregado = service.validarEntregaPorPinOCodigo(codigoOPin);
+        return ResponseEntity.ok(entregado);
     }
 
     @GetMapping("/{id:[0-9]+}")

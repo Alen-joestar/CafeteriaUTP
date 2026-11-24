@@ -15,4 +15,6 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     @Query("select coalesce(sum(p.total), 0) from Pedido p where upper(p.estado) = 'ENTREGADO' and substring(p.fechaRegistro, 1, 10) = :fecha")
     Double recaudarPorFecha(@Param("fecha") String fecha);
+
+    boolean existsByReferenciaPagoIgnoreCase(String referenciaPago);
 }

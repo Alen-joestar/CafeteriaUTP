@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+  ArqueoCajaResponse,
   LoginResponse,
   Pedido,
   Producto,
@@ -17,6 +18,13 @@ export class ApiService {
   // Auth
   login(identificador: string, password: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.baseUrl}/auth/login`, { identificador, password });
+  }
+
+  loginSsoInstitucional(correo: string, nombreCompleto?: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.baseUrl}/auth/sso-utp`, {
+      correo,
+      nombreCompleto
+    });
   }
 
   registrarEstudiante(datos: {
@@ -72,16 +80,20 @@ export class ApiService {
     return this.http.patch<Pedido>(`${this.baseUrl}/pedidos/${id}/estado`, cambios);
   }
 
+  validarEntregaPorPinOCodigo(codigoOPin: string): Observable<Pedido> {
+    return this.http.post<Pedido>(`${this.baseUrl}/pedidos/validar-entrega`, { codigoOPin });
+  }
+
   eliminarPedido(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/pedidos/${id}`);
   }
 
-  obtenerRecaudacion(fecha?: string): Observable<{ fecha: string; totalRecaudado: number }> {
+  obtenerRecaudacion(fecha?: string): Observable<ArqueoCajaResponse> {
     let params = new HttpParams();
     if (fecha) {
       params = params.set('fecha', fecha);
     }
-    return this.http.get<{ fecha: string; totalRecaudado: number }>(
+    return this.http.get<ArqueoCajaResponse>(
       `${this.baseUrl}/pedidos/recaudacion`,
       { params }
     );

@@ -50,6 +50,10 @@ export interface Pedido {
   metodoPago: 'YAPE' | 'PLIN' | 'TARJETA' | string;
   estadoPago: 'PENDIENTE' | 'PAGADO' | 'RECHAZADO' | string;
   referenciaPago?: string;
+  pinEntrega?: string;
+  horarioRecojo?: string;
+  cremasYExtras?: string;
+  montoExtras?: number;
   items: DetallePedido[];
 }
 
@@ -59,10 +63,23 @@ export interface SolicitudPedidoDTO {
   metodoPago: string;
   referenciaPago?: string;
   estado?: string;
+  horarioRecojo?: string;
+  cremasYExtras?: string;
+  montoExtras?: number;
   items: { productoId: number; cantidad: number }[];
 }
 
 export interface ItemCarrito {
   producto: Producto;
   cantidad: number;
+}
+
+export interface ArqueoCajaResponse {
+  fecha: string;
+  totalRecaudado: number;
+  totalYape?: number;
+  totalPlin?: number;
+  totalTarjeta?: number;
+  cantidadEntregados?: number;
+  topPlatos?: { nombre: string; cantidad: number; recaudado: number }[];
 }

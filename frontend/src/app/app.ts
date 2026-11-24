@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  ArqueoCajaResponse,
   ItemCarrito,
   LoginResponse,
   Pedido,
@@ -17,8 +18,10 @@ import { ApiService } from './services/api.service';
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
+  private pollingTimer: ReturnType<typeof setInterval> | null = null;
+  private estadosPreviosPedidos = new Map<number, string>();
 
   // Navegación
   vistaActiva = signal<'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'>('CATALOGO');
@@ -40,19 +43,23 @@ export class App implements OnInit {
     return base.substring(0, 2).toUpperCase();
   });
 
-  // Modal Auth
+  // Modal Auth + SSO Institucional @utp.edu.pe
   mostrarModalAuth = signal(false);
-  modoAuth = signal<'LOGIN' | 'REGISTRO'>('LOGIN');
+  modoAuth = signal<'LOGIN' | 'REGISTRO' | 'SSO'>('LOGIN');
   loginIdentificador = '';
   loginPassword = '';
   regCodigo = '';
   regCorreo = '';
   regNombre = '';
   regPassword = '';
+  ssoCorreo = 'u2303001@utp.edu.pe';
+  ssoNombre = 'Carlos Pérez';
+  ssoPinSimulado = '849210';
 
-  // Notificaciones Toast
+  // Notificaciones Toast y Audio en Tiempo Real
   notificacion = signal<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
   cargando = signal(false);
+  alertasSonorasActivas = signal(true);
 
   // Catálogo y Filtros
   productos = signal<Producto[]>([]);
@@ -73,26 +80,80 @@ export class App implements OnInit {
     });
   });
 
-  // Carrito de Compras
+  // Carrito de Compras + Cremas, Extras y Horario de Recojo
   carrito = signal<ItemCarrito[]>([]);
   mostrarCarrito = signal(false);
   metodoPago = 'YAPE';
   referenciaPago = '';
   mensajePedido = '';
+  horarioRecojo = 'INMEDIATO';
+  readonly horariosDisponibles = [
+    'INMEDIATO',
+    '10:30 - 10:45 (Recreo)',
+    '12:30 - 12:45 (Almuerzo)',
+    '18:30 - 18:45 (Turno Noche)'
+  ];
+
+  readonly cremasDisponibles = ['Mayonesa', 'Ají de la casa', 'Kétchup', 'Salsa criolla'];
+  cremasSeleccionadas = signal<string[]>([]);
+
+  readonly extrasDisponibles = [
+    { id: 'QUESO', nombre: '+Queso', precio: 1.5 },
+    { id: 'HUEVO', nombre: '+Huevo', precio: 1.5 },
+    { id: 'PAPAS', nombre: '+Papas extra', precio: 2.0 }
+  ];
+  extrasSeleccionados = signal<string[]>([]);
 
   totalItemsCarrito = computed(() =>
     this.carrito().reduce((acc, item) => acc + item.cantidad, 0)
   );
 
-  totalMontoCarrito = computed(() =>
-    this.carrito().reduce((acc, item) => acc + item.producto.precio * item.cantidad, 0)
-  );
+  montoExtrasCarrito = computed(() => {
+    if (this.carrito().length === 0) return 0;
+    const ids = this.extrasSeleccionados();
+    return this.extrasDisponibles
+      .filter((e) => ids.includes(e.id))
+      .reduce((acc, e) => acc + e.precio, 0);
+  });
 
-  // Pedidos y Recaudación
+  resumenCremasYExtras = computed(() => {
+    const partes: string[] = [];
+    if (this.cremasSeleccionadas().length > 0) {
+      partes.push(`Cremas: ${this.cremasSeleccionadas().join(', ')}`);
+    }
+    if (this.extrasSeleccionados().length > 0) {
+      const nombresExtras = this.extrasDisponibles
+        .filter((e) => this.extrasSeleccionados().includes(e.id))
+        .map((e) => `${e.nombre} (S/ ${e.precio.toFixed(2)})`);
+      partes.push(`Extras: ${nombresExtras.join(', ')}`);
+    }
+    return partes.join(' | ');
+  });
+
+  totalMontoCarrito = computed(() => {
+    const base = this.carrito().reduce(
+      (acc, item) => acc + item.producto.precio * item.cantidad,
+      0
+    );
+    return base + this.montoExtrasCarrito();
+  });
+
+  // Pasarela de Pago Interactiva "UTP Pay" y Boleta Electrónica SUNAT
+  mostrarModalPasarela = signal(false);
+  tarjetaNumero = '4557 8801 2390 4412';
+  tarjetaTitular = 'ESTUDIANTE UTP';
+  tarjetaExp = '08/29';
+  tarjetaCvv = '842';
+  pedidoBoletaActiva = signal<Pedido | null>(null);
+  pedidoQrActiva = signal<Pedido | null>(null);
+
+  // Pedidos, Tiempo Estimado Dinámico, Escáner de Barra y Arqueo de Caja
   pedidos = signal<Pedido[]>([]);
   filtroEstadoPedido = signal<string>('TODOS');
   fechaRecaudacion = new Date().toISOString().slice(0, 10);
   totalRecaudadoDia = signal<number>(0);
+  arqueoDetalle = signal<ArqueoCajaResponse | null>(null);
+  inputPinBarra = '';
 
   pedidosListosEnBarra = computed(() =>
     this.pedidos().filter((p) => p.estado === 'LISTO')
@@ -115,6 +176,11 @@ export class App implements OnInit {
     };
   });
 
+  tiempoEstimadoMinutos = computed(() => {
+    const enCola = this.resumenEstados().nuevos + this.resumenEstados().preparacion;
+    return Math.min(25, 5 + enCola * 2);
+  });
+
   // Admin: Formulario Producto
   mostrarModalProducto = signal(false);
   productoEditandoId = signal<number | null>(null);
@@ -130,11 +196,29 @@ export class App implements OnInit {
     this.restaurarSesion();
     this.cargarProductos();
     if (this.estaAutenticado()) {
-      this.cargarPedidos();
+      this.cargarPedidos(true);
       if (this.esCafeteria()) {
         this.consultarRecaudacion();
       }
     }
+    this.iniciarPollingTiempoReal();
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer);
+    }
+  }
+
+  private iniciarPollingTiempoReal(): void {
+    this.pollingTimer = setInterval(() => {
+      if (this.estaAutenticado()) {
+        this.cargarPedidos(false);
+        if (this.esCafeteria() && this.vistaActiva() === 'ADMIN') {
+          this.consultarRecaudacion();
+        }
+      }
+    }, 6000);
   }
 
   private restaurarSesion(): void {
@@ -148,13 +232,40 @@ export class App implements OnInit {
     }
   }
 
+  reproducirCampanaSonora(tipo: 'listo' | 'nuevo' = 'listo'): void {
+    if (!this.alertasSonorasActivas()) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      const now = ctx.currentTime;
+      if (tipo === 'listo') {
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(1174.66, now + 0.14);
+      } else {
+        osc.frequency.setValueAtTime(659.25, now);
+        osc.frequency.setValueAtTime(880, now + 0.14);
+      }
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    } catch {
+      // Ignorar si el navegador bloquea audio sin interacción previa
+    }
+  }
+
   mostrarMensaje(tipo: 'exito' | 'error', texto: string): void {
     this.notificacion.set({ tipo, texto });
     setTimeout(() => {
       if (this.notificacion()?.texto === texto) {
         this.notificacion.set(null);
       }
-    }, 3500);
+    }, 3800);
   }
 
   resetearFiltroTodos(): void {
@@ -164,6 +275,24 @@ export class App implements OnInit {
 
   cambiarCategoriaSelect(valor: string): void {
     this.categoriaSeleccionada.set(valor);
+  }
+
+  toggleCrema(crema: string): void {
+    const act = this.cremasSeleccionadas();
+    if (act.includes(crema)) {
+      this.cremasSeleccionadas.set(act.filter((c) => c !== crema));
+    } else {
+      this.cremasSeleccionadas.set([...act, crema]);
+    }
+  }
+
+  toggleExtra(extraId: string): void {
+    const act = this.extrasSeleccionados();
+    if (act.includes(extraId)) {
+      this.extrasSeleccionados.set(act.filter((e) => e !== extraId));
+    } else {
+      this.extrasSeleccionados.set([...act, extraId]);
+    }
   }
 
   esEtapaCompletada(
@@ -177,6 +306,30 @@ export class App implements OnInit {
     return idxActual > idxEtapa || estadoActual === 'ENTREGADO';
   }
 
+  // Generador determinístico de matriz 7x7 estilo QR SVG (Costo S/ 0)
+  generarMatrizQr(texto: string): boolean[] {
+    const s = texto || 'CAF-UTP';
+    let hash = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      hash ^= s.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    const celdas: boolean[] = [];
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        const esEsquina =
+          (r < 2 && c < 2) || (r < 2 && c > 4) || (r > 4 && c < 2);
+        if (esEsquina) {
+          celdas.push(true);
+        } else {
+          const bit = ((Math.abs(hash) >> ((r * 7 + c) % 24)) ^ (r * 3 + c)) & 1;
+          celdas.push(bit === 1);
+        }
+      }
+    }
+    return celdas;
+  }
+
   cambiarVista(vista: 'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'): void {
     if ((vista === 'MIS_PEDIDOS' || vista === 'ADMIN') && !this.estaAutenticado()) {
       this.abrirModalLogin();
@@ -186,9 +339,9 @@ export class App implements OnInit {
     if (vista === 'CATALOGO') {
       this.cargarProductos();
     } else if (vista === 'MIS_PEDIDOS') {
-      this.cargarPedidos();
+      this.cargarPedidos(true);
     } else if (vista === 'ADMIN') {
-      this.cargarPedidos();
+      this.cargarPedidos(true);
       this.cargarProductos();
       this.consultarRecaudacion();
       if (this.subVistaAdmin() === 'USUARIOS') {
@@ -200,7 +353,7 @@ export class App implements OnInit {
   cambiarSubVistaAdmin(sub: 'PEDIDOS' | 'PRODUCTOS' | 'USUARIOS'): void {
     this.subVistaAdmin.set(sub);
     if (sub === 'PEDIDOS') {
-      this.cargarPedidos();
+      this.cargarPedidos(true);
       this.consultarRecaudacion();
     } else if (sub === 'PRODUCTOS') {
       this.cargarProductos();
@@ -209,7 +362,7 @@ export class App implements OnInit {
     }
   }
 
-  // ================= AUTH =================
+  // ================= AUTH + SSO INSTITUCIONAL SIMULADO =================
   abrirModalLogin(): void {
     this.modoAuth.set('LOGIN');
     this.mostrarModalAuth.set(true);
@@ -233,22 +386,49 @@ export class App implements OnInit {
     this.cargando.set(true);
     this.api.login(this.loginIdentificador.trim(), this.loginPassword).subscribe({
       next: (resp) => {
-        localStorage.setItem('cafeteria_session', JSON.stringify(resp));
-        this.sesion.set(resp);
-        this.mostrarModalAuth.set(false);
-        this.loginPassword = '';
-        this.cargando.set(false);
-        this.mostrarMensaje('exito', `¡Bienvenido(a), ${resp.nombreCompleto || resp.codigo}!`);
-        this.cargarPedidos();
-        if (resp.rol === 'CAFETERIA') {
-          this.consultarRecaudacion();
-        }
+        this.completarInicioSesion(resp);
       },
       error: (err) => {
         this.cargando.set(false);
         this.mostrarMensaje('error', err?.error?.error || 'Credenciales incorrectas');
       }
     });
+  }
+
+  iniciarSesionSsoUtp(): void {
+    const correo = this.ssoCorreo.trim().toLowerCase();
+    if (!correo.endsWith('@utp.edu.pe')) {
+      this.mostrarMensaje('error', 'Usa un correo institucional válido terminado en @utp.edu.pe');
+      return;
+    }
+    this.cargando.set(true);
+    this.api.loginSsoInstitucional(correo, this.ssoNombre.trim()).subscribe({
+      next: (resp) => {
+        this.completarInicioSesion(resp, 'SSO Microsoft @utp.edu.pe verificado');
+      },
+      error: (err) => {
+        this.cargando.set(false);
+        this.mostrarMensaje('error', err?.error?.error || 'No se pudo autenticar con SSO UTP');
+      }
+    });
+  }
+
+  private completarInicioSesion(resp: LoginResponse, prefijo?: string): void {
+    localStorage.setItem('cafeteria_session', JSON.stringify(resp));
+    this.sesion.set(resp);
+    this.mostrarModalAuth.set(false);
+    this.loginPassword = '';
+    this.cargando.set(false);
+    this.mostrarMensaje(
+      'exito',
+      prefijo
+        ? `${prefijo}: Bienvenido(a), ${resp.nombreCompleto || resp.codigo}`
+        : `¡Bienvenido(a), ${resp.nombreCompleto || resp.codigo}!`
+    );
+    this.cargarPedidos(true);
+    if (resp.rol === 'CAFETERIA') {
+      this.consultarRecaudacion();
+    }
   }
 
   registrarEstudiante(): void {
@@ -298,6 +478,7 @@ export class App implements OnInit {
     localStorage.removeItem('cafeteria_session');
     this.sesion.set(null);
     this.pedidos.set([]);
+    this.estadosPreviosPedidos.clear();
     this.vistaActiva.set('CATALOGO');
     this.mostrarMensaje('exito', 'Has cerrado sesión correctamente');
   }
@@ -368,12 +549,33 @@ export class App implements OnInit {
 
   vaciarCarrito(): void {
     this.carrito.set([]);
+    this.cremasSeleccionadas.set([]);
+    this.extrasSeleccionados.set([]);
+  }
+
+  // ================= PASARELA "UTP PAY" Y EMISIÓN DE ORDEN =================
+  abrirPasarelaOPedir(): void {
+    if (!this.estaAutenticado()) {
+      this.abrirModalLogin();
+      this.mostrarMensaje('error', 'Inicia sesión o regístrate para emitir tu orden');
+      return;
+    }
+    if (this.carrito().length === 0) {
+      this.mostrarMensaje('error', 'Agrega al menos un producto al ticket');
+      return;
+    }
+    this.mostrarModalPasarela.set(true);
+  }
+
+  simularPagoInstantaneoUtpPay(): void {
+    const sufijo = Math.floor(100000 + Math.random() * 900000);
+    this.referenciaPago = `UTPPAY-${this.metodoPago}-${sufijo}`;
+    this.confirmarPedido();
   }
 
   confirmarPedido(): void {
     if (!this.estaAutenticado()) {
       this.abrirModalLogin();
-      this.mostrarMensaje('error', 'Inicia sesión o regístrate para emitir tu orden');
       return;
     }
     if (this.carrito().length === 0) {
@@ -387,6 +589,9 @@ export class App implements OnInit {
       metodoPago: this.metodoPago,
       referenciaPago: this.referenciaPago.trim() || undefined,
       mensaje: this.mensajePedido.trim() || undefined,
+      horarioRecojo: this.horarioRecojo,
+      cremasYExtras: this.resumenCremasYExtras() || undefined,
+      montoExtras: this.montoExtrasCarrito(),
       items: this.carrito().map((i) => ({
         productoId: i.producto.id!,
         cantidad: i.cantidad
@@ -396,13 +601,21 @@ export class App implements OnInit {
     this.api.crearPedido(dto).subscribe({
       next: (pedidoCreado) => {
         this.cargando.set(false);
+        this.mostrarModalPasarela.set(false);
         this.carrito.set([]);
+        this.cremasSeleccionadas.set([]);
+        this.extrasSeleccionados.set([]);
         this.referenciaPago = '';
         this.mensajePedido = '';
-        this.mostrarMensaje('exito', `Orden ${pedidoCreado.codigo} emitida con éxito`);
+        this.horarioRecojo = 'INMEDIATO';
+        this.reproducirCampanaSonora('nuevo');
+        this.mostrarMensaje(
+          'exito',
+          `Orden ${pedidoCreado.codigo} emitida (PIN recojo: ${pedidoCreado.pinEntrega || '----'})`
+        );
         this.cargarProductos();
         this.vistaActiva.set('MIS_PEDIDOS');
-        this.cargarPedidos();
+        this.cargarPedidos(true);
       },
       error: (err) => {
         this.cargando.set(false);
@@ -411,13 +624,80 @@ export class App implements OnInit {
     });
   }
 
-  // ================= PEDIDOS =================
-  cargarPedidos(): void {
+  // ================= BOLETA ELECTRÓNICA (SUNAT MOCK) =================
+  abrirBoletaElectronica(pedido: Pedido): void {
+    this.pedidoBoletaActiva.set(pedido);
+  }
+
+  calcularOpGravada(total: number): number {
+    return total / 1.18;
+  }
+
+  calcularIgv(total: number): number {
+    return total - this.calcularOpGravada(total);
+  }
+
+  imprimirBoleta(): void {
+    window.print();
+  }
+
+  // ================= PEDIDOS, TIEMPO REAL Y ESCÁNER QR/PIN EN BARRA =================
+  cargarPedidos(esCargaInicial = false): void {
     if (!this.estaAutenticado()) return;
     this.api.listarPedidos().subscribe({
-      next: (lista) => this.pedidos.set(lista),
-      error: (err) =>
-        this.mostrarMensaje('error', err?.error?.error || 'No se pudieron cargar los pedidos')
+      next: (lista) => {
+        if (!esCargaInicial && this.estadosPreviosPedidos.size > 0) {
+          for (const p of lista) {
+            const previo = this.estadosPreviosPedidos.get(p.id);
+            if (previo && previo !== 'LISTO' && p.estado === 'LISTO') {
+              this.reproducirCampanaSonora('listo');
+              this.mostrarMensaje(
+                'exito',
+                `¡CAMPANA EN BARRA! El boleto #${p.codigo} ya está LISTO PARA RECOGER`
+              );
+            } else if (!previo && this.esCafeteria() && p.estado === 'NUEVO') {
+              this.reproducirCampanaSonora('nuevo');
+              this.mostrarMensaje('exito', `Nueva comanda recibida en cocina: #${p.codigo}`);
+            }
+          }
+        }
+        this.estadosPreviosPedidos.clear();
+        for (const p of lista) {
+          this.estadosPreviosPedidos.set(p.id, p.estado);
+        }
+        this.pedidos.set(lista);
+      },
+      error: (err) => {
+        if (esCargaInicial) {
+          this.mostrarMensaje('error', err?.error?.error || 'No se pudieron cargar los pedidos');
+        }
+      }
+    });
+  }
+
+  validarEntregaPorPinEnBarra(codigoOPinManual?: string): void {
+    const valor = (codigoOPinManual ?? this.inputPinBarra).trim();
+    if (!valor) {
+      this.mostrarMensaje('error', 'Ingresa el PIN de 4 dígitos o el código #CAF-XXXX a entregar');
+      return;
+    }
+    this.api.validarEntregaPorPinOCodigo(valor).subscribe({
+      next: (entregado) => {
+        this.inputPinBarra = '';
+        this.reproducirCampanaSonora('listo');
+        this.mostrarMensaje(
+          'exito',
+          `Entrega verificada con éxito: Boleto #${entregado.codigo} (${entregado.nombreCliente || 'Cliente'})`
+        );
+        this.cargarPedidos(true);
+        this.consultarRecaudacion();
+      },
+      error: (err) => {
+        this.mostrarMensaje(
+          'error',
+          err?.error?.error || 'No se encontró un pedido activo con ese PIN o código'
+        );
+      }
     });
   }
 
@@ -427,10 +707,14 @@ export class App implements OnInit {
   ): void {
     this.api.cambiarEstadoPedido(pedido.id, cambios).subscribe({
       next: (actualizado) => {
+        if (cambios.estado === 'LISTO') {
+          this.reproducirCampanaSonora('listo');
+        }
+        this.estadosPreviosPedidos.set(actualizado.id, actualizado.estado);
         this.pedidos.set(
           this.pedidos().map((p) => (p.id === actualizado.id ? actualizado : p))
         );
-        this.mostrarMensaje('exito', `Orden ${actualizado.codigo} actualizada`);
+        this.mostrarMensaje('exito', `Orden ${actualizado.codigo} actualizada a ${actualizado.estado}`);
         this.cargarProductos();
         if (this.esCafeteria()) {
           this.consultarRecaudacion();
@@ -457,9 +741,48 @@ export class App implements OnInit {
   consultarRecaudacion(): void {
     if (!this.esCafeteria()) return;
     this.api.obtenerRecaudacion(this.fechaRecaudacion).subscribe({
-      next: (res) => this.totalRecaudadoDia.set(res.totalRecaudado || 0),
-      error: () => this.totalRecaudadoDia.set(0)
+      next: (res) => {
+        this.totalRecaudadoDia.set(res.totalRecaudado || 0);
+        this.arqueoDetalle.set(res);
+      },
+      error: () => {
+        this.totalRecaudadoDia.set(0);
+        this.arqueoDetalle.set(null);
+      }
     });
+  }
+
+  exportarArqueoCsv(): void {
+    const arq = this.arqueoDetalle();
+    const entregadosHoy = this.pedidos().filter(
+      (p) => p.estado === 'ENTREGADO' && (p.fechaRegistro || '').startsWith(this.fechaRecaudacion)
+    );
+    const lineas: string[] = [
+      'REPORTE DE ARQUEO Y CIERRE DE CAJA - CAFETERIA UTP SEDE PIURA',
+      `Fecha de Arqueo;,${this.fechaRecaudacion}`,
+      `Total Recaudado (S/);,${(arq?.totalRecaudado ?? 0).toFixed(2)}`,
+      `Ingresos por YAPE (S/);,${(arq?.totalYape ?? 0).toFixed(2)}`,
+      `Ingresos por PLIN (S/);,${(arq?.totalPlin ?? 0).toFixed(2)}`,
+      `Ingresos por TARJETA (S/);,${(arq?.totalTarjeta ?? 0).toFixed(2)}`,
+      `Ordenes Entregadas;,${arq?.cantidadEntregados ?? entregadosHoy.length}`,
+      '',
+      'DETALLE DE COMANDAS ENTREGADAS',
+      'Codigo,Fecha,Cliente,Metodo Pago,Referencia,Horario Recojo,Total (S/)'
+    ];
+    for (const p of entregadosHoy) {
+      lineas.push(
+        `${p.codigo},${p.fechaRegistro},"${p.nombreCliente || p.codigoCliente || p.clienteId}",${p.metodoPago},${p.referenciaPago || 'MANUAL'},"${p.horarioRecojo || 'INMEDIATO'}",${p.total.toFixed(2)}`
+      );
+    }
+    const contenidoCsv = '\uFEFF' + lineas.join('\r\n');
+    const blob = new Blob([contenidoCsv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `arqueo_caja_utp_${this.fechaRecaudacion}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.mostrarMensaje('exito', `Arqueo exportado: arqueo_caja_utp_${this.fechaRecaudacion}.csv`);
   }
 
   // ================= ADMIN: CRUD PRODUCTOS =================

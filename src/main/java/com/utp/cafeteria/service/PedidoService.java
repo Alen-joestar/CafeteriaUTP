@@ -54,8 +54,18 @@ public class PedidoService {
         var cliente = usuarios.findById(solicitud.getClienteId())
                 .orElseThrow(() -> new IllegalArgumentException("El cliente indicado no existe"));
         String metodo = normalizarMetodoPago(solicitud.getMetodoPago());
+
+        String ref = solicitud.getReferenciaPago() != null ? solicitud.getReferenciaPago().trim() : null;
+        if (ref != null && !ref.isEmpty() && pedidos.existsByReferenciaPagoIgnoreCase(ref)) {
+            throw new IllegalArgumentException(
+                    "El código de operación '" + ref + "' ya fue utilizado en otro pedido (validación antifraude)");
+        }
+
         List<DetallePedido> detalles = resolverItemsYDescontarStock(solicitud.getItems(), true);
-        double total = detalles.stream().mapToDouble(DetallePedido::getSubtotal).sum();
+        double montoExtras = (solicitud.getMontoExtras() != null && solicitud.getMontoExtras() > 0)
+                ? solicitud.getMontoExtras()
+                : 0.0;
+        double total = detalles.stream().mapToDouble(DetallePedido::getSubtotal).sum() + montoExtras;
 
         Pedido pedido = new Pedido();
         pedido.setCodigo("CAF-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT));
@@ -65,9 +75,16 @@ public class PedidoService {
         pedido.setTotal(total);
         pedido.setEstado("NUEVO");
         pedido.setMetodoPago(metodo);
-        pedido.setReferenciaPago(solicitud.getReferenciaPago());
-        pedido.setEstadoPago(pasarelaPago.procesar(metodo, solicitud.getReferenciaPago(), total));
+        pedido.setReferenciaPago(ref);
+        pedido.setEstadoPago(pasarelaPago.procesar(metodo, ref, total));
         pedido.setFechaRegistro(LocalDateTime.now().format(FECHA));
+        pedido.setPinEntrega(String.format("%04d", java.util.concurrent.ThreadLocalRandom.current().nextInt(1000, 10000)));
+        String horario = (solicitud.getHorarioRecojo() == null || solicitud.getHorarioRecojo().isBlank())
+                ? "INMEDIATO"
+                : solicitud.getHorarioRecojo().trim();
+        pedido.setHorarioRecojo(horario);
+        pedido.setCremasYExtras(solicitud.getCremasYExtras());
+        pedido.setMontoExtras(montoExtras);
         return pedidos.save(pedido);
     }
 
@@ -198,5 +215,83 @@ public class PedidoService {
     @Transactional(readOnly = true)
     public Double recaudacionPorFecha(String fecha) {
         return pedidos.recaudarPorFecha(fecha);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> arqueoPorFecha(String fecha) {
+        Double totalBase = pedidos.recaudarPorFecha(fecha);
+        double totalRecaudado = totalBase != null ? totalBase : 0.0;
+
+        List<Pedido> todos = pedidos.buscar(null, null);
+        double totalYape = 0.0;
+        double totalPlin = 0.0;
+        double totalTarjeta = 0.0;
+        int cantidadEntregados = 0;
+        java.util.Map<String, int[]> conteoPlatos = new java.util.HashMap<>();
+        java.util.Map<String, Double> montoPlatos = new java.util.HashMap<>();
+
+        for (Pedido p : todos) {
+            if ("ENTREGADO".equalsIgnoreCase(p.getEstado())
+                    && p.getFechaRegistro() != null
+                    && p.getFechaRegistro().startsWith(fecha)) {
+                cantidadEntregados++;
+                double monto = p.getTotal() != null ? p.getTotal() : 0.0;
+                if ("YAPE".equalsIgnoreCase(p.getMetodoPago())) {
+                    totalYape += monto;
+                } else if ("PLIN".equalsIgnoreCase(p.getMetodoPago())) {
+                    totalPlin += monto;
+                } else if ("TARJETA".equalsIgnoreCase(p.getMetodoPago())) {
+                    totalTarjeta += monto;
+                }
+                if (p.getItems() != null) {
+                    for (DetallePedido det : p.getItems()) {
+                        String nom = det.getNombreProducto() != null ? det.getNombreProducto() : "Plato";
+                        int cant = det.getCantidad() != null ? det.getCantidad() : 0;
+                        double sub = det.getSubtotal() != null ? det.getSubtotal() : 0.0;
+                        conteoPlatos.computeIfAbsent(nom, k -> new int[]{0})[0] += cant;
+                        montoPlatos.put(nom, montoPlatos.getOrDefault(nom, 0.0) + sub);
+                    }
+                }
+            }
+        }
+
+        List<java.util.Map<String, Object>> topPlatos = conteoPlatos.entrySet().stream()
+                .sorted((a, b) -> Integer.compare(b.getValue()[0], a.getValue()[0]))
+                .limit(3)
+                .map(e -> java.util.Map.<String, Object>of(
+                        "nombre", e.getKey(),
+                        "cantidad", e.getValue()[0],
+                        "recaudado", montoPlatos.getOrDefault(e.getKey(), 0.0)))
+                .toList();
+
+        java.util.Map<String, Object> resultado = new java.util.LinkedHashMap<>();
+        resultado.put("fecha", fecha);
+        resultado.put("totalRecaudado", totalRecaudado);
+        resultado.put("totalYape", totalYape);
+        resultado.put("totalPlin", totalPlin);
+        resultado.put("totalTarjeta", totalTarjeta);
+        resultado.put("cantidadEntregados", cantidadEntregados);
+        resultado.put("topPlatos", topPlatos);
+        return resultado;
+    }
+
+    public Pedido validarEntregaPorPinOCodigo(String codigoOPin) {
+        if (codigoOPin == null || codigoOPin.isBlank()) {
+            throw new IllegalArgumentException("Ingresa el código del boleto (#CAF-XXXX) o el PIN de 4 dígitos");
+        }
+        String limpio = codigoOPin.trim().replace("#", "").toUpperCase(Locale.ROOT);
+        List<Pedido> todos = pedidos.buscar(null, null);
+        Pedido encontrado = todos.stream()
+                .filter(p -> !"CANCELADO".equalsIgnoreCase(p.getEstado())
+                        && !"ENTREGADO".equalsIgnoreCase(p.getEstado())
+                        && ((p.getCodigo() != null && p.getCodigo().toUpperCase(Locale.ROOT).contains(limpio))
+                                || (p.getPinEntrega() != null && p.getPinEntrega().equalsIgnoreCase(limpio))))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No se encontró ningún pedido activo pendiente de entrega con el código/PIN: " + codigoOPin));
+
+        encontrado.setEstado("ENTREGADO");
+        encontrado.setEstadoPago("PAGADO");
+        return pedidos.save(encontrado);
     }
 }
