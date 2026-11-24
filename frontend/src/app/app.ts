@@ -78,29 +78,84 @@ export class App implements OnInit, OnDestroy {
     });
   });
 
-  // Carrito de Compras + Cremas, Extras y Horario de Recojo
+  // Carrito de Compras + Cremas, Extras Dinámicos por Categoría y Horario Personalizable
   carrito = signal<ItemCarrito[]>([]);
   mostrarCarrito = signal(false);
   metodoPago = 'YAPE';
   referenciaPago = '';
   mensajePedido = '';
-  horarioRecojo = 'INMEDIATO';
-  readonly horariosDisponibles = [
-    'INMEDIATO',
-    '10:30 - 10:45 (Recreo)',
-    '12:30 - 12:45 (Almuerzo)',
-    '18:30 - 18:45 (Turno Noche)'
-  ];
+  modoHorarioRecojo = signal<'INMEDIATO' | 'PROGRAMADO'>('INMEDIATO');
+  horaRecojoPersonalizada = '10:45';
+  readonly horasSugeridasUtp = ['09:15', '10:45', '12:30', '15:15', '18:30', '20:15'];
 
-  readonly cremasDisponibles = ['Mayonesa', 'Ají de la casa', 'Kétchup', 'Salsa criolla'];
+  readonly catalogoCremasPorCategoria: Record<string, string[]> = {
+    SALADO: ['Mayonesa', 'Ají de la casa', 'Kétchup', 'Salsa criolla'],
+    BEBIDAS: ['Con azúcar', 'Sin azúcar', 'Con estevia', 'Bien caliente'],
+    ENDULZATE: ['Con canela en polvo', 'Envase para llevar']
+  };
   cremasSeleccionadas = signal<string[]>([]);
 
-  readonly extrasDisponibles = [
-    { id: 'QUESO', nombre: '+Queso', precio: 1.5 },
-    { id: 'HUEVO', nombre: '+Huevo', precio: 1.5 },
-    { id: 'PAPAS', nombre: '+Papas extra', precio: 2.0 }
+  readonly catalogoExtrasPorCategoria: {
+    id: string;
+    grupo: 'SALADO' | 'BEBIDAS' | 'ENDULZATE';
+    nombre: string;
+    precio: number;
+  }[] = [
+    { id: 'QUESO', grupo: 'SALADO', nombre: '+Queso fundido', precio: 1.5 },
+    { id: 'HUEVO', grupo: 'SALADO', nombre: '+Huevo frito', precio: 1.5 },
+    { id: 'PAPAS', grupo: 'SALADO', nombre: '+Papas al hilo extra', precio: 2.0 },
+    { id: 'SHOT_CAFE', grupo: 'BEBIDAS', nombre: '+Shot extra de café', precio: 1.5 },
+    { id: 'LECHE_DESL', grupo: 'BEBIDAS', nombre: '+Leche deslactosada', precio: 1.0 },
+    { id: 'MANJAR_EXT', grupo: 'ENDULZATE', nombre: '+Manjar blanco extra', precio: 1.0 },
+    { id: 'COMBINADO', grupo: 'ENDULZATE', nombre: '+Combinado arroz con leche', precio: 2.0 }
   ];
   extrasSeleccionados = signal<string[]>([]);
+
+  gruposCategoriasEnCarrito = computed(() => {
+    const grupos = new Set<'SALADO' | 'BEBIDAS' | 'ENDULZATE'>();
+    for (const item of this.carrito()) {
+      const cat = (item.producto.categoria || '').toUpperCase();
+      if (cat === 'SANDWICH' || cat === 'ANTOJITOS') {
+        grupos.add('SALADO');
+      } else if (cat === 'BEBIDAS') {
+        grupos.add('BEBIDAS');
+      } else if (cat === 'ENDULZATE') {
+        grupos.add('ENDULZATE');
+      }
+    }
+    return grupos;
+  });
+
+  cremasDisponibles = computed(() => {
+    const grupos = this.gruposCategoriasEnCarrito();
+    const lista: string[] = [];
+    if (grupos.has('SALADO')) lista.push(...this.catalogoCremasPorCategoria['SALADO']);
+    if (grupos.has('BEBIDAS')) lista.push(...this.catalogoCremasPorCategoria['BEBIDAS']);
+    if (grupos.has('ENDULZATE')) lista.push(...this.catalogoCremasPorCategoria['ENDULZATE']);
+    return lista;
+  });
+
+  extrasDisponibles = computed(() => {
+    const grupos = this.gruposCategoriasEnCarrito();
+    return this.catalogoExtrasPorCategoria.filter((e) => grupos.has(e.grupo));
+  });
+
+  etiquetaCremasCarrito = computed(() => {
+    const grupos = this.gruposCategoriasEnCarrito();
+    if (grupos.has('SALADO') && (grupos.has('BEBIDAS') || grupos.has('ENDULZATE'))) {
+      return 'CREMAS Y PREFERENCIAS (GRATIS):';
+    }
+    if (grupos.has('SALADO')) return 'CREMAS Y SALSAS (GRATIS):';
+    if (grupos.has('BEBIDAS')) return 'ENDULZANTE / TEMPERATURA (GRATIS):';
+    return 'PRESENTACIÓN (GRATIS):';
+  });
+
+  horarioRecojoFinal = computed(() => {
+    if (this.modoHorarioRecojo() === 'INMEDIATO') {
+      return 'INMEDIATO';
+    }
+    return `PROGRAMADO ${this.horaRecojoPersonalizada || '10:45'}`;
+  });
 
   totalItemsCarrito = computed(() =>
     this.carrito().reduce((acc, item) => acc + item.cantidad, 0)
@@ -109,21 +164,28 @@ export class App implements OnInit, OnDestroy {
   montoExtrasCarrito = computed(() => {
     if (this.carrito().length === 0) return 0;
     const ids = this.extrasSeleccionados();
-    return this.extrasDisponibles
+    const disponibles = this.extrasDisponibles();
+    return disponibles
       .filter((e) => ids.includes(e.id))
       .reduce((acc, e) => acc + e.precio, 0);
   });
 
   resumenCremasYExtras = computed(() => {
     const partes: string[] = [];
-    if (this.cremasSeleccionadas().length > 0) {
-      partes.push(`Cremas: ${this.cremasSeleccionadas().join(', ')}`);
+    const cremasValidas = this.cremasSeleccionadas().filter((c) =>
+      this.cremasDisponibles().includes(c)
+    );
+    if (cremasValidas.length > 0) {
+      partes.push(`Opciones: ${cremasValidas.join(', ')}`);
     }
-    if (this.extrasSeleccionados().length > 0) {
-      const nombresExtras = this.extrasDisponibles
-        .filter((e) => this.extrasSeleccionados().includes(e.id))
-        .map((e) => `${e.nombre} (S/ ${e.precio.toFixed(2)})`);
-      partes.push(`Extras: ${nombresExtras.join(', ')}`);
+    const extrasValidos = this.extrasDisponibles().filter((e) =>
+      this.extrasSeleccionados().includes(e.id)
+    );
+    if (extrasValidos.length > 0) {
+      const nombresExtras = extrasValidos.map(
+        (e) => `${e.nombre} (S/ ${e.precio.toFixed(2)})`
+      );
+      partes.push(`Adicionales: ${nombresExtras.join(', ')}`);
     }
     return partes.join(' | ');
   });
@@ -442,6 +504,8 @@ export class App implements OnInit, OnDestroy {
     this.mostrarMensaje('exito', `¡Bienvenido(a), ${resp.nombreCompleto || resp.codigo}!`);
     this.cargarPedidos(true);
     if (resp.rol === 'CAFETERIA') {
+      this.vaciarCarrito();
+      this.vistaActiva.set('ADMIN');
       this.consultarRecaudacion();
     }
   }
@@ -522,6 +586,10 @@ export class App implements OnInit, OnDestroy {
   }
 
   agregarAlCarrito(producto: Producto): void {
+    if (this.esCafeteria()) {
+      this.abrirModalEditarProducto(producto);
+      return;
+    }
     if (!producto.disponible || (producto.stock != null && producto.stock <= 0)) {
       this.mostrarMensaje('error', 'Este producto está agotado');
       return;
@@ -560,12 +628,25 @@ export class App implements OnInit, OnDestroy {
       actual[idx] = { ...item, cantidad: nuevaCant };
     }
     this.carrito.set(actual);
+    this.sincronizarOpcionesConCarrito();
+  }
+
+  private sincronizarOpcionesConCarrito(): void {
+    const cremasPermitidas = this.cremasDisponibles();
+    this.cremasSeleccionadas.set(
+      this.cremasSeleccionadas().filter((c) => cremasPermitidas.includes(c))
+    );
+    const extrasPermitidos = this.extrasDisponibles().map((e) => e.id);
+    this.extrasSeleccionados.set(
+      this.extrasSeleccionados().filter((id) => extrasPermitidos.includes(id))
+    );
   }
 
   vaciarCarrito(): void {
     this.carrito.set([]);
     this.cremasSeleccionadas.set([]);
     this.extrasSeleccionados.set([]);
+    this.modoHorarioRecojo.set('INMEDIATO');
   }
 
   // ================= PASARELA "UTP PAY" Y EMISIÓN DE ORDEN =================
@@ -575,9 +656,26 @@ export class App implements OnInit, OnDestroy {
       this.mostrarMensaje('error', 'Inicia sesión o regístrate para emitir tu orden');
       return;
     }
+    if (this.esCafeteria()) {
+      this.mostrarMensaje(
+        'error',
+        'El rol administrativo CAFETERIA gestiona comandas; no emite pedidos como estudiante'
+      );
+      return;
+    }
     if (this.carrito().length === 0) {
       this.mostrarMensaje('error', 'Agrega al menos un producto al ticket');
       return;
+    }
+    if (this.modoHorarioRecojo() === 'PROGRAMADO') {
+      const h = this.horaRecojoPersonalizada;
+      if (!h || h < '07:00' || h > '22:00') {
+        this.mostrarMensaje(
+          'error',
+          'Selecciona una hora de recojo dentro del horario de atención UTP (07:00 a 22:00)'
+        );
+        return;
+      }
     }
     this.mostrarModalPasarela.set(true);
   }
@@ -593,6 +691,10 @@ export class App implements OnInit, OnDestroy {
       this.abrirModalLogin();
       return;
     }
+    if (this.esCafeteria()) {
+      this.mostrarMensaje('error', 'El administrador no puede realizar pedidos como cliente');
+      return;
+    }
     if (this.carrito().length === 0) {
       this.mostrarMensaje('error', 'Agrega al menos un producto al ticket');
       return;
@@ -604,7 +706,7 @@ export class App implements OnInit, OnDestroy {
       metodoPago: this.metodoPago,
       referenciaPago: this.referenciaPago.trim() || undefined,
       mensaje: this.mensajePedido.trim() || undefined,
-      horarioRecojo: this.horarioRecojo,
+      horarioRecojo: this.horarioRecojoFinal(),
       cremasYExtras: this.resumenCremasYExtras() || undefined,
       montoExtras: this.montoExtrasCarrito(),
       items: this.carrito().map((i) => ({
@@ -622,7 +724,7 @@ export class App implements OnInit, OnDestroy {
         this.extrasSeleccionados.set([]);
         this.referenciaPago = '';
         this.mensajePedido = '';
-        this.horarioRecojo = 'INMEDIATO';
+        this.modoHorarioRecojo.set('INMEDIATO');
         this.reproducirCampanaSonora('nuevo');
         this.mostrarMensaje(
           'exito',

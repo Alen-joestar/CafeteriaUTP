@@ -67,23 +67,25 @@
           <span class="nav-count">{{ productos().length }}</span>
         </button>
 
-        <button
-          type="button"
-          class="nav-ticket-btn"
-          [class.active]="vistaActiva() === 'MIS_PEDIDOS'"
-          (click)="cambiarVista('MIS_PEDIDOS')"
-        >
-          <span class="nav-btn-left">
-            <svg class="icon-sm" viewBox="0 0 24 24">
-              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-              <path d="M13 5v2" />
-              <path d="M13 17v2" />
-              <path d="M13 11v2" />
-            </svg>
-            <span>02 / MIS PEDIDOS</span>
-          </span>
-          <span class="nav-count" title="Boletos activos en curso">{{ pedidosEnCurso().length }}</span>
-        </button>
+        @if (!esCafeteria()) {
+          <button
+            type="button"
+            class="nav-ticket-btn"
+            [class.active]="vistaActiva() === 'MIS_PEDIDOS'"
+            (click)="cambiarVista('MIS_PEDIDOS')"
+          >
+            <span class="nav-btn-left">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                <path d="M13 5v2" />
+                <path d="M13 17v2" />
+                <path d="M13 11v2" />
+              </svg>
+              <span>02 / MIS PEDIDOS</span>
+            </span>
+            <span class="nav-count" title="Boletos activos en curso">{{ pedidosEnCurso().length }}</span>
+          </button>
+        }
 
         @if (esCafeteria()) {
           <button
@@ -99,9 +101,9 @@
                 <rect width="7" height="9" x="14" y="12" rx="1" />
                 <rect width="7" height="5" x="3" y="16" rx="1" />
               </svg>
-              <span>03 / CAJA & COCINA</span>
+              <span>02 / CAJA & COCINA</span>
             </span>
-            <span class="nav-count">ADMIN</span>
+            <span class="nav-count">{{ pedidosEnCurso().length }}</span>
           </button>
         }
       </nav>
@@ -304,24 +306,34 @@
 
               <div class="dome-footer">
                 <span class="price-mono">S/ {{ p.precio | number: '1.2-2' }}</span>
-                <button
-                  type="button"
-                  class="btn-add-dome"
-                  [disabled]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
-                  (click)="agregarAlCarrito(p)"
-                >
-                  <svg class="icon-sm" viewBox="0 0 24 24">
-                    <path d="M5 12h14" />
-                    <path d="M12 5v14" />
-                  </svg>
-                  <span>
-                    {{
-                      !p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)
-                        ? 'Sin Stock'
-                        : 'Al Ticket'
-                    }}
-                  </span>
-                </button>
+                @if (esCafeteria()) {
+                  <button
+                    type="button"
+                    class="btn-add-dome"
+                    (click)="abrirModalEditarProducto(p)"
+                  >
+                    <span>Editar Plato</span>
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn-add-dome"
+                    [disabled]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+                    (click)="agregarAlCarrito(p)"
+                  >
+                    <svg class="icon-sm" viewBox="0 0 24 24">
+                      <path d="M5 12h14" />
+                      <path d="M12 5v14" />
+                    </svg>
+                    <span>
+                      {{
+                        !p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)
+                          ? 'Sin Stock'
+                          : 'Al Ticket'
+                      }}
+                    </span>
+                  </button>
+                }
               </div>
             </article>
           } @empty {
@@ -1114,159 +1126,270 @@
     }
   </main>
 
-  <!-- ==================== COLUMNA 3: TICKET DE COMPRA REAL ==================== -->
+  <!-- ==================== COLUMNA 3: TICKET DE COMPRA (ESTUDIANTE) O MONITOR DE CAJA (ADMIN) ==================== -->
   <aside class="ticket-dock">
     <div class="paper-receipt">
-      <div class="receipt-head">
-        <h3>
-          <svg class="icon-md" viewBox="0 0 24 24">
-            <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
-            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
-            <path d="M12 17.5v-11" />
-          </svg>
-          <span>TICKET DE ORDEN</span>
-        </h3>
-        <small>SEDE PIURA · CAJA RÁPIDA</small>
-      </div>
-
-      <div class="receipt-items">
-        @for (item of carrito(); track item.producto.id) {
-          <div class="receipt-row">
-            <div style="flex: 1;">
-              <strong>{{ item.producto.nombre }}</strong><br />
-              <small style="color: var(--muted);">
-                S/ {{ item.producto.precio | number: '1.2-2' }} c/u
-              </small>
-            </div>
-            <div class="qty-stepper">
-              <button
-                type="button"
-                class="qty-btn"
-                (click)="cambiarCantidadCarrito(item.producto.id, -1)"
-              >
-                -
-              </button>
-              <strong>{{ item.cantidad }}</strong>
-              <button
-                type="button"
-                class="qty-btn"
-                (click)="cambiarCantidadCarrito(item.producto.id, 1)"
-              >
-                +
-              </button>
-            </div>
-            <strong style="min-width: 62px; text-align: right;">
-              S/ {{ item.producto.precio * item.cantidad | number: '1.2-2' }}
-            </strong>
-          </div>
-        } @empty {
-          <div
-            style="text-align: center; padding: 28px 10px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.76rem;"
-          >
-            [ TICKET VACÍO ]<br />Selecciona platos de la carta
-          </div>
-        }
-
-        @if (carrito().length > 0) {
-          <!-- Personalización Estructurada: Cremas Gratis y Extras con Precio -->
-          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line);">
-            <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
-              CREMAS (GRATIS):
-            </div>
-            <div class="chip-group">
-              @for (c of cremasDisponibles; track c) {
-                <button
-                  type="button"
-                  class="chip-mini"
-                  [class.active]="cremasSeleccionadas().includes(c)"
-                  (click)="toggleCrema(c)"
-                >
-                  {{ c }}
-                </button>
-              }
-            </div>
-
-            <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
-              ADICIONALES / EXTRAS:
-            </div>
-            <div class="chip-group">
-              @for (ex of extrasDisponibles; track ex.id) {
-                <button
-                  type="button"
-                  class="chip-mini"
-                  [class.active]="extrasSeleccionados().includes(ex.id)"
-                  (click)="toggleExtra(ex.id)"
-                >
-                  {{ ex.nombre }} (S/ {{ ex.precio | number: '1.2-2' }})
-                </button>
-              }
-            </div>
-          </div>
-        }
-      </div>
-
-      <div class="receipt-pay-box">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span class="font-mono" style="font-size: 0.7rem; font-weight: 700;">HORARIO RECOJO:</span>
-          <button
-            type="button"
-            (click)="vaciarCarrito()"
-            style="border: none; background: none; color: var(--utp-red); font-family: 'Space Mono', monospace; font-size: 0.7rem; cursor: pointer;"
-          >
-            [Vaciar]
-          </button>
+      @if (esCafeteria()) {
+        <div class="receipt-head">
+          <h3>
+            <svg class="icon-md" viewBox="0 0 24 24">
+              <rect width="7" height="9" x="3" y="3" rx="1" />
+              <rect width="7" height="5" x="14" y="3" rx="1" />
+              <rect width="7" height="9" x="14" y="12" rx="1" />
+              <rect width="7" height="5" x="3" y="16" rx="1" />
+            </svg>
+            <span>MODO CAJA & COCINA</span>
+          </h3>
+          <small>PANEL OPERATIVO · ROL CAFETERÍA</small>
         </div>
 
-        <select class="receipt-input" [(ngModel)]="horarioRecojo" style="margin-top: 4px;">
-          @for (h of horariosDisponibles; track h) {
-            <option [value]="h">{{ h }}</option>
-          }
-        </select>
+        <div class="receipt-items">
+          <div
+            style="background: var(--bg-warm); border: 1.5px dashed var(--ink); padding: 14px; margin-bottom: 12px; font-family: 'Space Mono', monospace; font-size: 0.74rem; line-height: 1.45;"
+          >
+            <strong>CUENTA ADMINISTRATIVA ACTIVA</strong><br />
+            El personal de Cafetería gestiona las comandas, el stock y el arqueo de caja; la emisión
+            de tickets de compra está habilitada únicamente para cuentas de <strong>ESTUDIANTE</strong>.
+          </div>
 
-        <div class="pay-selector">
-          @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
+          <div class="receipt-row">
+            <span>Comandas Nuevas:</span>
+            <strong>{{ resumenEstados().nuevos }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>En Preparación (Cocina):</span>
+            <strong>{{ resumenEstados().preparacion }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Listas en Barra:</span>
+            <strong style="color: var(--green);">{{ resumenEstados().listos }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Entregadas Total:</span>
+            <strong>{{ resumenEstados().entregados }}</strong>
+          </div>
+          <div class="receipt-row">
+            <span>Canceladas (Auditoría):</span>
+            <strong style="color: var(--utp-red);">{{ resumenEstados().cancelados }}</strong>
+          </div>
+        </div>
+
+        <div class="receipt-pay-box">
+          <div
+            style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
+            class="font-mono"
+          >
+            <span style="font-size: 0.78rem; font-weight: 700;">RECAUDACIÓN DÍA:</span>
+            <strong style="font-size: 1.2rem; color: var(--green);">
+              S/ {{ totalRecaudadoDia() | number: '1.2-2' }}
+            </strong>
+          </div>
+
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="cambiarVista('ADMIN')"
+          >
+            <span>IR AL TABLERO DE COMANDAS</span>
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </button>
+          <div class="barcode"></div>
+        </div>
+      } @else {
+        <div class="receipt-head">
+          <h3>
+            <svg class="icon-md" viewBox="0 0 24 24">
+              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 17.5v-11" />
+            </svg>
+            <span>TICKET DE ORDEN</span>
+          </h3>
+          <small>SEDE PIURA · CAJA RÁPIDA</small>
+        </div>
+
+        <div class="receipt-items">
+          @for (item of carrito(); track item.producto.id) {
+            <div class="receipt-row">
+              <div style="flex: 1;">
+                <strong>{{ item.producto.nombre }}</strong><br />
+                <small style="color: var(--muted);">
+                  S/ {{ item.producto.precio | number: '1.2-2' }} c/u · [{{ item.producto.categoria }}]
+                </small>
+              </div>
+              <div class="qty-stepper">
+                <button
+                  type="button"
+                  class="qty-btn"
+                  (click)="cambiarCantidadCarrito(item.producto.id, -1)"
+                >
+                  -
+                </button>
+                <strong>{{ item.cantidad }}</strong>
+                <button
+                  type="button"
+                  class="qty-btn"
+                  (click)="cambiarCantidadCarrito(item.producto.id, 1)"
+                >
+                  +
+                </button>
+              </div>
+              <strong style="min-width: 62px; text-align: right;">
+                S/ {{ item.producto.precio * item.cantidad | number: '1.2-2' }}
+              </strong>
+            </div>
+          } @empty {
+            <div
+              style="text-align: center; padding: 28px 10px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.76rem;"
+            >
+              [ TICKET VACÍO ]<br />Selecciona platos de la carta
+            </div>
+          }
+
+          @if (carrito().length > 0) {
+            <!-- Personalización Dinámica contextual según las categorías de los productos en el ticket -->
+            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line);">
+              <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
+                {{ etiquetaCremasCarrito() }}
+              </div>
+              <div class="chip-group">
+                @for (c of cremasDisponibles(); track c) {
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="cremasSeleccionadas().includes(c)"
+                    (click)="toggleCrema(c)"
+                  >
+                    {{ c }}
+                  </button>
+                }
+              </div>
+
+              <div class="font-mono" style="font-size: 0.68rem; font-weight: 700; margin-bottom: 4px;">
+                ADICIONALES DISPONIBLES PARA TU PEDIDO:
+              </div>
+              <div class="chip-group">
+                @for (ex of extrasDisponibles(); track ex.id) {
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="extrasSeleccionados().includes(ex.id)"
+                    (click)="toggleExtra(ex.id)"
+                  >
+                    {{ ex.nombre }} (S/ {{ ex.precio | number: '1.2-2' }})
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="receipt-pay-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span class="font-mono" style="font-size: 0.7rem; font-weight: 700;">HORARIO DE RECOJO:</span>
+            <button
+              type="button"
+              (click)="vaciarCarrito()"
+              style="border: none; background: none; color: var(--utp-red); font-family: 'Space Mono', monospace; font-size: 0.7rem; cursor: pointer;"
+            >
+              [Vaciar]
+            </button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
             <button
               type="button"
               class="pay-option"
-              [class.active]="metodoPago === m"
-              (click)="metodoPago = m"
+              [class.active]="modoHorarioRecojo() === 'INMEDIATO'"
+              (click)="modoHorarioRecojo.set('INMEDIATO')"
             >
-              {{ m }}
+              INMEDIATO (~{{ tiempoEstimadoMinutos() }}m)
             </button>
+            <button
+              type="button"
+              class="pay-option"
+              [class.active]="modoHorarioRecojo() === 'PROGRAMADO'"
+              (click)="modoHorarioRecojo.set('PROGRAMADO')"
+            >
+              ELEGIR HORA LIBRE
+            </button>
+          </div>
+
+          @if (modoHorarioRecojo() === 'PROGRAMADO') {
+            <div style="background: var(--bg-warm); border: 1px dashed var(--ink); padding: 8px; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+                <span class="font-mono" style="font-size: 0.68rem; font-weight: 700;">Hora exacta (07:00 - 22:00):</span>
+                <input
+                  type="time"
+                  min="07:00"
+                  max="22:00"
+                  [(ngModel)]="horaRecojoPersonalizada"
+                  style="border: 1.5px solid var(--ink); padding: 3px 8px; font-family: 'Space Mono', monospace; font-size: 0.75rem; font-weight: 700; background: #fff;"
+                />
+              </div>
+              <div class="chip-group" style="margin-bottom: 0;">
+                @for (hs of horasSugeridasUtp; track hs) {
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="horaRecojoPersonalizada === hs"
+                    (click)="horaRecojoPersonalizada = hs"
+                  >
+                    {{ hs }}
+                  </button>
+                }
+              </div>
+            </div>
           }
+
+          <div class="pay-selector">
+            @for (m of ['YAPE', 'PLIN', 'TARJETA']; track m) {
+              <button
+                type="button"
+                class="pay-option"
+                [class.active]="metodoPago === m"
+                (click)="metodoPago = m"
+              >
+                {{ m }}
+              </button>
+            }
+          </div>
+
+          <input
+            type="text"
+            class="receipt-input"
+            placeholder="Nota cocina: ej. poca sal, para llevar..."
+            [(ngModel)]="mensajePedido"
+          />
+
+          <div
+            style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
+            class="font-mono"
+          >
+            <span style="font-size: 0.82rem; font-weight: 700;">TOTAL TICKET:</span>
+            <strong style="font-size: 1.25rem; color: var(--utp-red);">
+              S/ {{ totalMontoCarrito() | number: '1.2-2' }}
+            </strong>
+          </div>
+
+          <button
+            type="button"
+            class="btn-emitir"
+            [disabled]="cargando()"
+            (click)="abrirPasarelaOPedir()"
+          >
+            <span>PAGAR CON UTP PAY & EMITIR</span>
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </button>
+          <div class="barcode"></div>
         </div>
-
-        <input
-          type="text"
-          class="receipt-input"
-          placeholder="Nota cocina: ej. poca sal, bien caliente..."
-          [(ngModel)]="mensajePedido"
-        />
-
-        <div
-          style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
-          class="font-mono"
-        >
-          <span style="font-size: 0.82rem; font-weight: 700;">TOTAL TICKET:</span>
-          <strong style="font-size: 1.25rem; color: var(--utp-red);">
-            S/ {{ totalMontoCarrito() | number: '1.2-2' }}
-          </strong>
-        </div>
-
-        <button
-          type="button"
-          class="btn-emitir"
-          [disabled]="cargando()"
-          (click)="abrirPasarelaOPedir()"
-        >
-          <span>PAGAR CON UTP PAY & EMITIR</span>
-          <svg class="icon-sm" viewBox="0 0 24 24">
-            <path d="M5 12h14" />
-            <path d="m12 5 7 7-7 7" />
-          </svg>
-        </button>
-        <div class="barcode"></div>
-      </div>
+      }
     </div>
   </aside>
 
@@ -1281,7 +1404,7 @@
           Total a Pagar: S/ {{ totalMontoCarrito() | number: '1.2-2' }}
         </h3>
         <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 14px;">
-          Horario de recojo: <strong>{{ horarioRecojo }}</strong>
+          Horario de recojo: <strong>{{ horarioRecojoFinal() }}</strong>
           @if (resumenCremasYExtras()) {
             <br />{{ resumenCremasYExtras() }}
           }
