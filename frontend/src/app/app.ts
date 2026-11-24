@@ -365,10 +365,32 @@ export class App implements OnInit, OnDestroy {
     const guardada = localStorage.getItem('cafeteria_session');
     if (guardada) {
       try {
-        this.sesion.set(JSON.parse(guardada));
+        const parsed: LoginResponse = JSON.parse(guardada);
+        if (parsed?.token && this.esTokenVigente(parsed.token)) {
+          this.sesion.set(parsed);
+          if (parsed.rol === 'CAFETERIA') {
+            this.vistaActiva.set('ADMIN');
+          } else {
+            this.vistaActiva.set('CATALOGO');
+          }
+        } else {
+          localStorage.removeItem('cafeteria_session');
+        }
       } catch {
         localStorage.removeItem('cafeteria_session');
       }
+    }
+  }
+
+  private esTokenVigente(token: string): boolean {
+    try {
+      const partes = token.split('.');
+      if (partes.length !== 3) return false;
+      const payload = JSON.parse(atob(partes[1]));
+      if (!payload?.exp) return true;
+      return payload.exp * 1000 > Date.now() + 5000;
+    } catch {
+      return false;
     }
   }
 
@@ -548,13 +570,19 @@ export class App implements OnInit, OnDestroy {
     this.mostrarModalAuth.set(false);
     this.loginPassword = '';
     this.cargando.set(false);
-    this.mostrarMensaje('exito', `¡Bienvenido(a), ${resp.nombreCompleto || resp.codigo}!`);
-    this.cargarPedidos(true);
+    this.estadosPreviosPedidos.clear();
+    this.cargarProductos();
+    this.cargarPedidos(false);
     if (resp.rol === 'CAFETERIA') {
       this.vaciarCarrito();
       this.vistaActiva.set('ADMIN');
       this.consultarRecaudacion();
+    } else {
+      this.categoriaSeleccionada.set('TODOS');
+      this.busquedaProducto.set('');
+      this.vistaActiva.set('CATALOGO');
     }
+    this.mostrarMensaje('exito', `¡Bienvenido(a), ${resp.nombreCompleto || resp.codigo}!`);
   }
 
   registrarEstudiante(): void {
@@ -614,7 +642,11 @@ export class App implements OnInit, OnDestroy {
   cargarProductos(): void {
     this.api.listarProductos().subscribe({
       next: (lista) => this.productos.set(lista),
-      error: () => this.mostrarMensaje('error', 'No se pudo conectar con el servidor backend')
+      error: () => {
+        if (this.productos().length === 0) {
+          this.mostrarMensaje('error', 'No se pudo conectar con el servidor backend');
+        }
+      }
     });
   }
 
@@ -867,7 +899,14 @@ export class App implements OnInit, OnDestroy {
         this.pedidos.set(lista);
       },
       error: (err) => {
-        if (esCargaInicial) {
+        if (err?.status === 401 || err?.status === 403) {
+          localStorage.removeItem('cafeteria_session');
+          this.sesion.set(null);
+          this.pedidos.set([]);
+          this.vistaActiva.set('CATALOGO');
+          return;
+        }
+        if (esCargaInicial && this.pedidos().length === 0) {
           this.mostrarMensaje('error', err?.error?.error || 'No se pudieron cargar los pedidos');
         }
       }
