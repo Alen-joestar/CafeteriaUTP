@@ -214,7 +214,20 @@ export class App implements OnInit, OnDestroy {
   >([]);
   subVistaMisPedidos = signal<'EN_CURSO' | 'HISTORIAL'>('EN_CURSO');
   filtroEstadoPedido = signal<string>('EN_CURSO');
+  busquedaComandaAdmin = signal<string>('');
   pedidoPorCancelar = signal<Pedido | null>(null);
+  motivoCancelacionSeleccionado = 'Error al elegir plato';
+  readonly motivosCancelacionEstudiante = [
+    'Error al elegir plato',
+    'Cambio de horario de clases',
+    'Cambiaré de método de pago'
+  ];
+  readonly motivosCancelacionAdmin = [
+    'N° de operación Yape/Plin no verificado',
+    'Cliente no se presentó en barra',
+    'Solicitud del estudiante en caja',
+    'Ajuste operativo de cocina'
+  ];
   registroPorEliminar = signal<{
     tipo: 'PRODUCTO' | 'USUARIO';
     id: number;
@@ -258,17 +271,29 @@ export class App implements OnInit, OnDestroy {
 
   pedidosFiltrados = computed(() => {
     const est = this.filtroEstadoPedido();
-    const lista = [...this.pedidos()].sort((a, b) => b.id - a.id);
+    const q = this.busquedaComandaAdmin().trim().toLowerCase();
+    let lista = [...this.pedidos()].sort((a, b) => b.id - a.id);
     if (est === 'EN_CURSO') {
-      return lista.filter(
+      lista = lista.filter(
         (p) =>
           p.estado === 'NUEVO' ||
           p.estado === 'EN_PREPARACION' ||
           p.estado === 'LISTO'
       );
+    } else if (est !== 'TODOS') {
+      lista = lista.filter((p) => p.estado === est);
     }
-    if (est === 'TODOS') return lista;
-    return lista.filter((p) => p.estado === est);
+    if (q) {
+      lista = lista.filter(
+        (p) =>
+          (p.codigo || '').toLowerCase().includes(q) ||
+          (p.nombreCliente || '').toLowerCase().includes(q) ||
+          (p.codigoCliente || '').toLowerCase().includes(q) ||
+          (p.pinEntrega || '').toLowerCase().includes(q) ||
+          (p.referenciaPago || '').toLowerCase().includes(q)
+      );
+    }
+    return lista;
   });
 
   resumenEstados = computed(() => {
@@ -621,6 +646,10 @@ export class App implements OnInit, OnDestroy {
     const idx = actual.findIndex((i) => i.producto.id === producto.id);
     if (idx >= 0) {
       const nuevaCant = actual[idx].cantidad + 1;
+      if (nuevaCant > 10) {
+        this.mostrarMensaje('error', 'El máximo permitido por plato en un mismo ticket es de 10 unidades');
+        return;
+      }
       if (producto.stock != null && nuevaCant > producto.stock) {
         this.mostrarMensaje('error', `Solo quedan ${producto.stock} unidades disponibles`);
         return;
@@ -644,6 +673,10 @@ export class App implements OnInit, OnDestroy {
     if (nuevaCant <= 0) {
       actual.splice(idx, 1);
     } else {
+      if (nuevaCant > 10) {
+        this.mostrarMensaje('error', 'El máximo permitido por plato en un mismo ticket es de 10 unidades');
+        return;
+      }
       if (item.producto.stock != null && nuevaCant > item.producto.stock) {
         this.mostrarMensaje('error', `Stock máximo disponible: ${item.producto.stock}`);
         return;
@@ -698,6 +731,19 @@ export class App implements OnInit, OnDestroy {
           'Selecciona una hora de recojo dentro del horario de atención UTP (07:00 a 22:00)'
         );
         return;
+      }
+      const ahora = new Date();
+      const minActuales = ahora.getHours() * 60 + ahora.getMinutes();
+      const partes = h.split(':');
+      const minSeleccionados = parseInt(partes[0], 10) * 60 + parseInt(partes[1] || '0', 10);
+      if (minActuales >= 7 * 60 && minActuales <= 21 * 60 + 45) {
+        if (minSeleccionados < minActuales + 10) {
+          this.mostrarMensaje(
+            'error',
+            'La hora programada debe ser al menos 10 minutos posterior a la hora actual (o usa Recojo Inmediato)'
+          );
+          return;
+        }
       }
     }
     this.mostrarModalPasarela.set(true);
@@ -855,6 +901,9 @@ export class App implements OnInit, OnDestroy {
   }
 
   solicitarCancelacionPedido(pedido: Pedido): void {
+    this.motivoCancelacionSeleccionado = this.esCafeteria()
+      ? this.motivosCancelacionAdmin[0]
+      : this.motivosCancelacionEstudiante[0];
     this.pedidoPorCancelar.set(pedido);
   }
 
@@ -862,12 +911,73 @@ export class App implements OnInit, OnDestroy {
     const ped = this.pedidoPorCancelar();
     if (!ped) return;
     this.pedidoPorCancelar.set(null);
-    this.actualizarEstadoPedido(ped, { estado: 'CANCELADO' });
+    this.actualizarEstadoPedido(ped, {
+      estado: 'CANCELADO',
+      motivoCancelacion: this.motivoCancelacionSeleccionado
+    });
+  }
+
+  rechazarPagoPedidoAdmin(pedido: Pedido): void {
+    this.actualizarEstadoPedido(pedido, {
+      estadoPago: 'RECHAZADO',
+      motivoCancelacion: 'Pago rechazado en caja: N° de operación no verificado'
+    });
+  }
+
+  repetirPedidoAnterior(pedido: Pedido): void {
+    if (this.esCafeteria()) return;
+    const catalogo = this.productos();
+    const nuevoCarrito: ItemCarrito[] = [];
+    let omitidos = 0;
+
+    for (const det of pedido.items || []) {
+      const prod = catalogo.find(
+        (p) => p.id === det.productoId || p.nombre.toLowerCase() === det.nombreProducto.toLowerCase()
+      );
+      if (prod && prod.disponible && (prod.stock == null || prod.stock > 0)) {
+        const cant = Math.min(10, det.cantidad, prod.stock ?? 10);
+        if (cant > 0) {
+          nuevoCarrito.push({ producto: prod, cantidad: cant });
+        } else {
+          omitidos++;
+        }
+      } else {
+        omitidos++;
+      }
+    }
+
+    if (nuevoCarrito.length === 0) {
+      this.mostrarMensaje('error', 'Los platos de esa orden se encuentran agotados actualmente');
+      return;
+    }
+
+    this.carrito.set(nuevoCarrito);
+    this.sincronizarOpcionesConCarrito();
+    this.vistaActiva.set('CATALOGO');
+    this.mostrarMensaje(
+      'exito',
+      omitidos > 0
+        ? 'Se cargaron al ticket los platos disponibles de tu orden anterior'
+        : `Platos del boleto #${pedido.codigo} cargados nuevamente a tu ticket`
+    );
+  }
+
+  calificarPedidoEntregado(pedido: Pedido, estrellas: number): void {
+    this.api.calificarPedido(pedido.id, estrellas).subscribe({
+      next: (actualizado) => {
+        this.pedidos.set(
+          this.pedidos().map((p) => (p.id === actualizado.id ? actualizado : p))
+        );
+        this.mostrarMensaje('exito', `¡Gracias! Calificaste la orden #${pedido.codigo} con ${estrellas} ★`);
+      },
+      error: (err) =>
+        this.mostrarMensaje('error', err?.error?.error || 'No se pudo registrar la calificación')
+    });
   }
 
   actualizarEstadoPedido(
     pedido: Pedido,
-    cambios: { estado?: string; estadoPago?: string }
+    cambios: { estado?: string; estadoPago?: string; motivoCancelacion?: string }
   ): void {
     this.api.cambiarEstadoPedido(pedido.id, cambios).subscribe({
       next: (actualizado) => {
@@ -933,23 +1043,24 @@ export class App implements OnInit, OnDestroy {
       `Ingresos por TARJETA (S/);,${(arq?.totalTarjeta ?? 0).toFixed(2)}`,
       `Ordenes Entregadas;,${arq?.cantidadEntregados ?? entregadosHoy.length}`,
       `Ordenes Canceladas (Auditoria Stock);,${canceladosHoy.length}`,
+      `Satisfaccion del Servicio TI (CSAT);,${arq?.promedioCalificacion || 0} / 5 (${arq?.totalCalificaciones || 0} votos)`,
       '',
       '1. DETALLE CONTABLE DE COMANDAS ENTREGADAS',
-      'Codigo,Fecha,Cliente,Metodo Pago,Referencia,Horario Recojo,Total (S/)'
+      'Codigo,Fecha,Cliente,Metodo Pago,Referencia,Horario Recojo,Calificacion,Total (S/)'
     ];
     for (const p of entregadosHoy) {
       lineas.push(
-        `${p.codigo},${p.fechaRegistro},"${p.nombreCliente || p.codigoCliente || p.clienteId}",${p.metodoPago},${p.referenciaPago || 'MANUAL'},"${p.horarioRecojo || 'INMEDIATO'}",${p.total.toFixed(2)}`
+        `${p.codigo},${p.fechaRegistro},"${p.nombreCliente || p.codigoCliente || p.clienteId}",${p.metodoPago},${p.referenciaPago || 'MANUAL'},"${p.horarioRecojo || 'INMEDIATO'}","${p.calificacion ? p.calificacion + ' estrellas' : 'Sin calificar'}",${p.total.toFixed(2)}`
       );
     }
     lineas.push(
       '',
       '2. REGISTRO DE AUDITORIA - ORDENES CANCELADAS (STOCK DEVUELTO AL INVENTARIO)',
-      'Codigo,Fecha,Cliente,Metodo Pago,Estado Pago,Horario Recojo,Monto Anulado (S/)'
+      'Codigo,Fecha,Cliente,Metodo Pago,Estado Pago,Motivo Cancelacion,Monto Anulado (S/)'
     );
     for (const c of canceladosHoy) {
       lineas.push(
-        `${c.codigo},${c.fechaRegistro},"${c.nombreCliente || c.codigoCliente || c.clienteId}",${c.metodoPago},${c.estadoPago},"${c.horarioRecojo || 'INMEDIATO'}",${c.total.toFixed(2)}`
+        `${c.codigo},${c.fechaRegistro},"${c.nombreCliente || c.codigoCliente || c.clienteId}",${c.metodoPago},${c.estadoPago},"${c.motivoCancelacion || 'Cancelado'}",${c.total.toFixed(2)}`
       );
     }
     const contenidoCsv = '\uFEFF' + lineas.join('\r\n');

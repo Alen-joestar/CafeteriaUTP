@@ -50,11 +50,15 @@ public class ProductoService {
         if (datos.getImagenUrl() != null) {
             existente.setImagenUrl(datos.getImagenUrl());
         }
+        Integer stockAnterior = existente.getStock();
         if (datos.getStock() != null) {
             existente.setStock(datos.getStock());
         }
         if (datos.getDisponible() != null) {
             existente.setDisponible(datos.getDisponible());
+        }
+        if (stockAnterior != null && stockAnterior <= 0 && existente.getStock() != null && existente.getStock() > 0) {
+            existente.setDisponible(true);
         }
         if (existente.getStock() != null && existente.getStock() == 0) {
             existente.setDisponible(false);

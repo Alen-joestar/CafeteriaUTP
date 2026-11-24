@@ -89,6 +89,18 @@ public class PedidoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
+    @PatchMapping("/{id:[0-9]+}/calificar")
+    public ResponseEntity<Pedido> calificar(@PathVariable Long id,
+            @RequestBody Map<String, Integer> body, Authentication authentication) {
+        Integer estrellas = body.get("calificacion");
+        Long uid = esCafeteria(authentication) ? null : usuarioId(authentication);
+        Pedido calificado = service.calificarPedido(id, estrellas, uid);
+        if (calificado == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(calificado);
+    }
+
     @PatchMapping("/{id:[0-9]+}/estado")
     public ResponseEntity<Pedido> actualizarEstado(@PathVariable Long id,
             @RequestBody ActualizarEstadoPedidoDTO dto, Authentication authentication) {

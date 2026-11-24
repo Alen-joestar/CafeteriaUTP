@@ -284,9 +284,12 @@
               <span
                 class="stock-orb"
                 [class.out]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
+                [class.low]="p.disponible && p.stock !== null && p.stock !== undefined && p.stock > 0 && p.stock <= 5"
               >
                 @if (!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)) {
                   AGOTADO
+                } @else if (p.stock !== null && p.stock !== undefined && p.stock <= 5) {
+                  ¡ÚLTIMOS {{ p.stock }}!
                 } @else {
                   STOCK {{ p.stock ?? '∞' }}
                 }
@@ -491,8 +494,11 @@
                   </div>
                 </div>
               } @else {
-                <p class="font-mono" style="color: var(--utp-red); margin: 14px 0;">
+                <p class="font-mono" style="color: var(--utp-red); margin: 14px 0 8px;">
                   [ ORDEN CANCELADA ]
+                  @if (ped.motivoCancelacion) {
+                    · Motivo: {{ ped.motivoCancelacion }}
+                  }
                 </p>
               }
 
@@ -533,7 +539,33 @@
                   }
                 </strong>
 
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                  @if (ped.estado === 'ENTREGADO') {
+                    <div style="display: inline-flex; align-items: center; gap: 4px; margin-right: 4px;">
+                      <span class="font-mono" style="font-size: 0.7rem; color: var(--muted);">Calificar:</span>
+                      @for (st of [1, 2, 3, 4, 5]; track st) {
+                        <button
+                          type="button"
+                          class="star-btn"
+                          [class.active]="(ped.calificacion || 0) >= st"
+                          (click)="calificarPedidoEntregado(ped, st)"
+                        >
+                          {{ st }}★
+                        </button>
+                      }
+                    </div>
+                  }
+
+                  @if (ped.estado === 'ENTREGADO' || ped.estado === 'CANCELADO') {
+                    <button
+                      type="button"
+                      class="action-pill"
+                      (click)="repetirPedidoAnterior(ped)"
+                    >
+                      <span>Volver a Pedir</span>
+                    </button>
+                  }
+
                   <button
                     type="button"
                     class="action-pill"
@@ -738,6 +770,11 @@
             <span>
               <strong>AUDITORÍA CANCELADAS:</strong> {{ resumenEstados().cancelados }}
             </span>
+            <span>
+              <strong>SATISFACCIÓN TI (CSAT):</strong>
+              {{ arqueoDetalle()?.promedioCalificacion || '5.0' }} / 5 ★
+              ({{ arqueoDetalle()?.totalCalificaciones || 0 }} votos)
+            </span>
             @if (arqueoDetalle()?.topPlatos?.length) {
               <span style="color: var(--utp-red);">
                 <strong>TOP VENTAS:</strong>
@@ -796,9 +833,18 @@
             <div
               style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;"
             >
-              <h3 style="font-size: 1.15rem;">
-                Tablero de Comandas ({{ pedidosFiltrados().length }})
-              </h3>
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <h3 style="font-size: 1.15rem;">
+                  Tablero de Comandas ({{ pedidosFiltrados().length }})
+                </h3>
+                <input
+                  type="text"
+                  placeholder="Filtrar por alumno, código U23... o #CAF..."
+                  [ngModel]="busquedaComandaAdmin()"
+                  (ngModelChange)="busquedaComandaAdmin.set($event)"
+                  style="border: 1.5px solid var(--ink); border-radius: 99px; padding: 5px 14px; font-family: 'Space Mono', monospace; font-size: 0.73rem; background: var(--surface); min-width: 255px; outline: none;"
+                />
+              </div>
               <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 <button
                   type="button"
@@ -937,9 +983,27 @@
                     @if (ped.mensaje) {
                       <div
                         class="font-mono"
-                        style="font-size: 0.72rem; color: var(--muted); background: #F5F2EB; padding: 6px 10px; margin-bottom: 10px;"
+                        style="font-size: 0.72rem; color: var(--muted); background: #F5F2EB; padding: 6px 10px; margin-bottom: 6px;"
                       >
                         Nota: "{{ ped.mensaje }}"
+                      </div>
+                    }
+
+                    @if (ped.motivoCancelacion) {
+                      <div
+                        class="font-mono"
+                        style="font-size: 0.71rem; color: var(--utp-red); background: var(--utp-red-soft); padding: 6px 10px; margin-bottom: 8px;"
+                      >
+                        Auditoría Cancelación: {{ ped.motivoCancelacion }}
+                      </div>
+                    }
+
+                    @if (ped.calificacion) {
+                      <div
+                        class="font-mono"
+                        style="font-size: 0.71rem; color: #0F766E; background: var(--green-soft); padding: 4px 10px; margin-bottom: 8px;"
+                      >
+                        Calificación del Estudiante: {{ ped.calificacion }} / 5 ★
                       </div>
                     }
                   </div>
@@ -955,21 +1019,26 @@
                           class="action-pill"
                           style="min-width: 138px; justify-content: center; background: var(--utp-red-soft); color: var(--utp-red); border-color: var(--utp-red); cursor: default;"
                         >
-                          <span>Orden Anulada</span>
+                          <span>{{ ped.estadoPago === 'RECHAZADO' ? 'Pago Rechazado' : 'Orden Anulada' }}</span>
                         </span>
                       } @else if (ped.estadoPago !== 'PAGADO') {
-                        <button
-                          type="button"
-                          class="action-pill green"
-                          style="min-width: 138px; justify-content: center;"
-                          (click)="actualizarEstadoPedido(ped, { estadoPago: 'PAGADO' })"
-                        >
-                          <svg class="icon-sm" viewBox="0 0 24 24">
-                            <rect width="20" height="14" x="2" y="5" rx="2" />
-                            <line x1="2" y1="10" x2="22" y2="10" />
-                          </svg>
-                          <span>Confirmar Pago</span>
-                        </button>
+                        <div style="display: flex; gap: 6px;">
+                          <button
+                            type="button"
+                            class="action-pill green"
+                            (click)="actualizarEstadoPedido(ped, { estadoPago: 'PAGADO' })"
+                          >
+                            <span>Confirmar Pago</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="action-pill red"
+                            title="Rechazar N° de operación inválido y devolver stock"
+                            (click)="rechazarPagoPedidoAdmin(ped)"
+                          >
+                            <span>Rechazar Pago</span>
+                          </button>
+                        </div>
                       } @else {
                         <span
                           class="action-pill"
@@ -1078,6 +1147,15 @@
                       <small style="color: var(--muted); margin-left: 8px;">
                         [{{ pr.categoria }}] · Stock: {{ pr.stock ?? '∞' }}
                       </small>
+                      @if (pr.stock !== null && pr.stock !== undefined && pr.stock === 0) {
+                        <span class="ready-code" style="background: var(--utp-red); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
+                          AGOTADO
+                        </span>
+                      } @else if (pr.stock !== null && pr.stock !== undefined && pr.stock <= 5) {
+                        <span class="ready-code" style="background: var(--amber); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
+                          STOCK CRÍTICO
+                        </span>
+                      }
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -1674,12 +1752,18 @@
       <div class="modal-dome" (click)="$event.stopPropagation()">
         <span class="arch-hero-tag">CONTROL Y AUDITORÍA DE INVENTARIO</span>
         <h3 style="margin: 8px 0 6px;">¿Cancelar la Orden #{{ pedCanc.codigo }}?</h3>
-        <p style="font-size: 0.84rem; color: var(--muted); margin-bottom: 14px; line-height: 1.45;">
-          Al confirmar la cancelación:
-          <br />1. Las unidades se <strong>devolverán automáticamente al stock</strong> de la carta.
-          <br />2. La orden saldrá de la bandeja <strong>En Curso</strong> y quedará archivada en
-          <strong>Historial / Auditoría de Canceladas</strong>.
+        <p style="font-size: 0.84rem; color: var(--muted); margin-bottom: 12px; line-height: 1.45;">
+          Al confirmar la cancelación, las unidades se <strong>devolverán automáticamente al stock</strong> y la orden quedará archivada en <strong>Historial / Auditoría</strong>.
         </p>
+
+        <div class="field-group">
+          <label>Motivo de Cancelación (Registro de Auditoría)</label>
+          <select [(ngModel)]="motivoCancelacionSeleccionado">
+            @for (mot of (esCafeteria() ? motivosCancelacionAdmin : motivosCancelacionEstudiante); track mot) {
+              <option [value]="mot">{{ mot }}</option>
+            }
+          </select>
+        </div>
 
         <div style="display: flex; gap: 10px; margin-top: 16px;">
           <button

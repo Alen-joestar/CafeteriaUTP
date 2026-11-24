@@ -590,6 +590,30 @@
   color: #fff;
 }
 
+.stock-orb.low {
+  background: var(--amber);
+  color: #fff;
+}
+
+.star-btn {
+  border: 1px solid var(--ink);
+  background: var(--bg-warm);
+  color: var(--ink);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.star-btn.active,
+.star-btn:hover {
+  background: #FDE047;
+  color: var(--ink);
+}
+
 .cat-mini-label {
   font-family: 'Space Mono', monospace;
   font-size: 0.68rem;

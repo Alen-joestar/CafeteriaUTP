@@ -54,6 +54,8 @@ export interface Pedido {
   horarioRecojo?: string;
   cremasYExtras?: string;
   montoExtras?: number;
+  motivoCancelacion?: string;
+  calificacion?: number;
   items: DetallePedido[];
 }
 
@@ -81,5 +83,7 @@ export interface ArqueoCajaResponse {
   totalPlin?: number;
   totalTarjeta?: number;
   cantidadEntregados?: number;
+  promedioCalificacion?: number;
+  totalCalificaciones?: number;
   topPlatos?: { nombre: string; cantidad: number; recaudado: number }[];
 }

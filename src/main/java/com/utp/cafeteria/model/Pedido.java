@@ -51,6 +51,9 @@ public class Pedido {
     @Column(length = 255)
     private String cremasYExtras;
     private Double montoExtras;
+    @Column(length = 180)
+    private String motivoCancelacion;
+    private Integer calificacion;
 
     public Pedido() {
     }
@@ -211,5 +214,21 @@ public class Pedido {
 
     public void setMontoExtras(Double montoExtras) {
         this.montoExtras = montoExtras;
+    }
+
+    public String getMotivoCancelacion() {
+        return motivoCancelacion;
+    }
+
+    public void setMotivoCancelacion(String motivoCancelacion) {
+        this.motivoCancelacion = motivoCancelacion;
+    }
+
+    public Integer getCalificacion() {
+        return calificacion;
+    }
+
+    public void setCalificacion(Integer calificacion) {
+        this.calificacion = calificacion;
     }
 }

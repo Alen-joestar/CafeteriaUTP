@@ -61,6 +61,18 @@ public class PedidoService {
                     "El código de operación '" + ref + "' ya fue utilizado en otro pedido (validación antifraude)");
         }
 
+        boolean seraPagoDirecto = ref != null && ref.toUpperCase(Locale.ROOT).startsWith("UTPPAY-");
+        if (!seraPagoDirecto) {
+            long pendientesActivos = pedidos.buscar(null, cliente.getId()).stream()
+                    .filter(p -> ("NUEVO".equalsIgnoreCase(p.getEstado()) || "EN_PREPARACION".equalsIgnoreCase(p.getEstado()))
+                            && "PENDIENTE".equalsIgnoreCase(p.getEstadoPago()))
+                    .count();
+            if (pendientesActivos >= 2) {
+                throw new IllegalArgumentException(
+                        "Ya tienes 2 pedidos pendientes de verificación de pago en caja. Espera su validación o paga con QR.");
+            }
+        }
+
         List<DetallePedido> detalles = resolverItemsYDescontarStock(solicitud.getItems(), true);
         double montoExtras = (solicitud.getMontoExtras() != null && solicitud.getMontoExtras() > 0)
                 ? solicitud.getMontoExtras()
@@ -121,6 +133,10 @@ public class PedidoService {
             }
             devolverStock(pedido);
             pedido.setEstado("CANCELADO");
+            String motivoEst = (dto.motivoCancelacion() != null && !dto.motivoCancelacion().isBlank())
+                    ? dto.motivoCancelacion().trim()
+                    : "Cancelado por el estudiante";
+            pedido.setMotivoCancelacion(motivoEst);
             return pedidos.save(pedido);
         }
 
@@ -133,6 +149,16 @@ public class PedidoService {
                 throw new IllegalArgumentException("No se puede confirmar el pago de una orden que ya fue CANCELADA");
             }
             pedido.setEstadoPago(nuevoEstadoPago);
+            if ("RECHAZADO".equals(nuevoEstadoPago)) {
+                if (!"CANCELADO".equalsIgnoreCase(pedido.getEstado())) {
+                    devolverStock(pedido);
+                }
+                pedido.setEstado("CANCELADO");
+                String motivoRechazo = (dto.motivoCancelacion() != null && !dto.motivoCancelacion().isBlank())
+                        ? dto.motivoCancelacion().trim()
+                        : "Pago rechazado en caja: N° de operación no verificado";
+                pedido.setMotivoCancelacion(motivoRechazo);
+            }
         }
 
         if (dto.estado() != null && !dto.estado().isBlank()) {
@@ -164,6 +190,13 @@ public class PedidoService {
 
             if ("CANCELADO".equals(nuevoEstado) && !"CANCELADO".equalsIgnoreCase(estadoActual)) {
                 devolverStock(pedido);
+            }
+            if ("CANCELADO".equals(nuevoEstado)) {
+                if (dto.motivoCancelacion() != null && !dto.motivoCancelacion().isBlank()) {
+                    pedido.setMotivoCancelacion(dto.motivoCancelacion().trim());
+                } else if (pedido.getMotivoCancelacion() == null || pedido.getMotivoCancelacion().isBlank()) {
+                    pedido.setMotivoCancelacion("Cancelado en control de Caja/Cocina");
+                }
             }
             pedido.setEstado(nuevoEstado);
         }
@@ -200,6 +233,8 @@ public class PedidoService {
         for (ItemPedidoDTO item : items) {
             if (item.productoId() == null || item.cantidad() == null || item.cantidad() < 1)
                 throw new IllegalArgumentException("Cada producto requiere productoId y cantidad mayor a cero");
+            if (item.cantidad() > 10)
+                throw new IllegalArgumentException("El máximo permitido por plato en un mismo ticket es de 10 unidades");
             var producto = productos.findById(item.productoId())
                     .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + item.productoId()));
             if (!Boolean.TRUE.equals(producto.getDisponible()))
@@ -292,6 +327,18 @@ public class PedidoService {
                         "recaudado", montoPlatos.getOrDefault(e.getKey(), 0.0)))
                 .toList();
 
+        double sumaCalificaciones = 0.0;
+        int totalCalificaciones = 0;
+        for (Pedido p : todos) {
+            if (p.getCalificacion() != null && p.getCalificacion() >= 1 && p.getCalificacion() <= 5) {
+                sumaCalificaciones += p.getCalificacion();
+                totalCalificaciones++;
+            }
+        }
+        double promedioCalificacion = totalCalificaciones > 0
+                ? Math.round((sumaCalificaciones / totalCalificaciones) * 10.0) / 10.0
+                : 0.0;
+
         java.util.Map<String, Object> resultado = new java.util.LinkedHashMap<>();
         resultado.put("fecha", fecha);
         resultado.put("totalRecaudado", totalRecaudado);
@@ -300,7 +347,25 @@ public class PedidoService {
         resultado.put("totalTarjeta", totalTarjeta);
         resultado.put("cantidadEntregados", cantidadEntregados);
         resultado.put("topPlatos", topPlatos);
+        resultado.put("promedioCalificacion", promedioCalificacion);
+        resultado.put("totalCalificaciones", totalCalificaciones);
         return resultado;
+    }
+
+    public Pedido calificarPedido(Long id, Integer calificacion, Long usuarioAutenticadoId) {
+        if (calificacion == null || calificacion < 1 || calificacion > 5) {
+            throw new IllegalArgumentException("La calificación debe estar entre 1 y 5 estrellas");
+        }
+        Pedido pedido = pedidos.buscarPorIdCompleto(id).orElse(null);
+        if (pedido == null) return null;
+        if (usuarioAutenticadoId != null && !usuarioAutenticadoId.equals(pedido.getClienteId())) {
+            throw new IllegalArgumentException("Solo puedes calificar tus propios pedidos");
+        }
+        if (!"ENTREGADO".equalsIgnoreCase(pedido.getEstado())) {
+            throw new IllegalArgumentException("Solo se pueden calificar pedidos que ya fueron ENTREGADOS");
+        }
+        pedido.setCalificacion(calificacion);
+        return pedidos.save(pedido);
     }
 
     public Pedido validarEntregaPorPinOCodigo(String codigoOPin) {

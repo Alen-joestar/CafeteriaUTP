@@ -76,9 +76,13 @@ export class ApiService {
 
   cambiarEstadoPedido(
     id: number,
-    cambios: { estado?: string; estadoPago?: string }
+    cambios: { estado?: string; estadoPago?: string; motivoCancelacion?: string }
   ): Observable<Pedido> {
     return this.http.patch<Pedido>(`${this.baseUrl}/pedidos/${id}/estado`, cambios);
+  }
+
+  calificarPedido(id: number, calificacion: number): Observable<Pedido> {
+    return this.http.patch<Pedido>(`${this.baseUrl}/pedidos/${id}/calificar`, { calificacion });
   }
 
   validarEntregaPorPinOCodigo(codigoOPin: string): Observable<Pedido> {
