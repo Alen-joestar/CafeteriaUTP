@@ -82,7 +82,7 @@
             </svg>
             <span>02 / MIS PEDIDOS</span>
           </span>
-          <span class="nav-count">{{ pedidos().length }}</span>
+          <span class="nav-count" title="Boletos activos en curso">{{ pedidosEnCurso().length }}</span>
         </button>
 
         @if (esCafeteria()) {
@@ -348,22 +348,40 @@
           <div>
             <h2 style="font-size: 1.7rem;">02 / Boletos Digitales, QR de Barra & Seguimiento</h2>
             <p style="color: var(--muted); font-size: 0.88rem;">
-              Sincronización automática cada 6s con alerta sonora. Presenta tu QR o PIN de 4 dígitos al recoger.
+              Tus boletos activos aparecen en "En Curso". Las órdenes entregadas o canceladas se archivan en Historial.
             </p>
           </div>
-          <button type="button" class="tab-arc-btn" (click)="cargarPedidos(true)">
-            <svg class="icon-sm" viewBox="0 0 24 24">
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-              <path d="M16 16h5v5" />
-            </svg>
-            <span>Sincronizar Ahora</span>
-          </button>
+          <div class="admin-subtabs">
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaMisPedidos() === 'EN_CURSO'"
+              (click)="subVistaMisPedidos.set('EN_CURSO')"
+            >
+              <span>En Curso ({{ pedidosEnCurso().length }})</span>
+            </button>
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaMisPedidos() === 'HISTORIAL'"
+              (click)="subVistaMisPedidos.set('HISTORIAL')"
+            >
+              <span>Historial y Cancelados ({{ pedidosHistorial().length }})</span>
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="cargarPedidos(true)">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
+              </svg>
+              <span>Sincronizar</span>
+            </button>
+          </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 18px;">
-          @for (ped of pedidosFiltrados(); track ped.id) {
+          @for (ped of misPedidosVisibles(); track ped.id) {
             <article class="ticket-order-card">
               <div
                 style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;"
@@ -537,7 +555,7 @@
                     <button
                       type="button"
                       class="action-pill red"
-                      (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                      (click)="solicitarCancelacionPedido(ped)"
                     >
                       <svg class="icon-sm" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10" />
@@ -552,13 +570,27 @@
             </article>
           } @empty {
             <div class="empty-ticket-box">
-              <h3 style="margin-bottom: 6px;">Aún no tienes boletos de pedido registrados</h3>
-              <p style="color: var(--muted); font-size: 0.86rem; margin-bottom: 14px;">
-                Selecciona tus platos en la Carta del Día y emite tu primera orden.
-              </p>
-              <button type="button" class="btn-add-dome" (click)="cambiarVista('CATALOGO')">
-                Ir a la Carta del Día
-              </button>
+              @if (subVistaMisPedidos() === 'EN_CURSO') {
+                <h3 style="margin-bottom: 6px;">No tienes boletos en preparación en este momento</h3>
+                <p style="color: var(--muted); font-size: 0.86rem; margin-bottom: 14px;">
+                  Pide tus platos en la Carta del Día o consulta tus órdenes anteriores en la pestaña "Historial y Cancelados".
+                </p>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                  <button type="button" class="btn-add-dome" (click)="cambiarVista('CATALOGO')">
+                    Ir a la Carta del Día
+                  </button>
+                  @if (pedidosHistorial().length > 0) {
+                    <button type="button" class="tab-arc-btn" (click)="subVistaMisPedidos.set('HISTORIAL')">
+                      Ver Historial ({{ pedidosHistorial().length }})
+                    </button>
+                  }
+                </div>
+              } @else {
+                <h3 style="margin-bottom: 6px;">Aún no tienes órdenes en el historial</h3>
+                <p style="color: var(--muted); font-size: 0.86rem;">
+                  Aquí se archivarán tus boletos entregados y cancelados para consulta o descarga de Boleta Electrónica.
+                </p>
+              }
             </div>
           }
         </div>
@@ -689,6 +721,9 @@
             <span>
               <strong>TARJETA:</strong> S/ {{ arqueoDetalle()?.totalTarjeta || 0 | number: '1.2-2' }}
             </span>
+            <span>
+              <strong>AUDITORÍA CANCELADAS:</strong> {{ resumenEstados().cancelados }}
+            </span>
             @if (arqueoDetalle()?.topPlatos?.length) {
               <span style="color: var(--utp-red);">
                 <strong>TOP VENTAS:</strong>
@@ -754,10 +789,10 @@
                 <button
                   type="button"
                   class="action-pill"
-                  [class.active-filter]="filtroEstadoPedido() === 'TODOS'"
-                  (click)="filtroEstadoPedido.set('TODOS')"
+                  [class.active-filter]="filtroEstadoPedido() === 'EN_CURSO'"
+                  (click)="filtroEstadoPedido.set('EN_CURSO')"
                 >
-                  Todas
+                  En Curso ({{ pedidosEnCurso().length }})
                 </button>
                 <button
                   type="button"
@@ -765,7 +800,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'NUEVO'"
                   (click)="filtroEstadoPedido.set('NUEVO')"
                 >
-                  Nuevas
+                  Nuevas ({{ resumenEstados().nuevos }})
                 </button>
                 <button
                   type="button"
@@ -773,7 +808,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'EN_PREPARACION'"
                   (click)="filtroEstadoPedido.set('EN_PREPARACION')"
                 >
-                  En Cocina
+                  En Cocina ({{ resumenEstados().preparacion }})
                 </button>
                 <button
                   type="button"
@@ -781,7 +816,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'LISTO'"
                   (click)="filtroEstadoPedido.set('LISTO')"
                 >
-                  Listas en Barra
+                  Listas en Barra ({{ resumenEstados().listos }})
                 </button>
                 <button
                   type="button"
@@ -789,7 +824,7 @@
                   [class.active-filter]="filtroEstadoPedido() === 'ENTREGADO'"
                   (click)="filtroEstadoPedido.set('ENTREGADO')"
                 >
-                  Entregadas
+                  Entregadas ({{ resumenEstados().entregados }})
                 </button>
                 <button
                   type="button"
@@ -797,7 +832,15 @@
                   [class.active-filter]="filtroEstadoPedido() === 'CANCELADO'"
                   (click)="filtroEstadoPedido.set('CANCELADO')"
                 >
-                  Canceladas
+                  Canceladas · Auditoría ({{ resumenEstados().cancelados }})
+                </button>
+                <button
+                  type="button"
+                  class="action-pill"
+                  [class.active-filter]="filtroEstadoPedido() === 'TODOS'"
+                  (click)="filtroEstadoPedido.set('TODOS')"
+                >
+                  Todas
                 </button>
               </div>
             </div>
@@ -958,7 +1001,7 @@
                         class="action-pill red"
                         style="padding: 6px 10px;"
                         title="Cancelar orden"
-                        (click)="actualizarEstadoPedido(ped, { estado: 'CANCELADO' })"
+                        (click)="solicitarCancelacionPedido(ped)"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
                           <path d="M18 6 6 18" />
@@ -1441,6 +1484,39 @@
           </button>
           <button type="button" class="tab-arc-btn" (click)="pedidoBoletaActiva.set(null)">
             Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL CONFIRMACIÓN DE CANCELACIÓN (AUDITORÍA) ==================== -->
+  @if (pedidoPorCancelar(); as pedCanc) {
+    <div class="modal-overlay" (click)="pedidoPorCancelar.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">CONTROL Y AUDITORÍA DE INVENTARIO</span>
+        <h3 style="margin: 8px 0 6px;">¿Cancelar la Orden #{{ pedCanc.codigo }}?</h3>
+        <p style="font-size: 0.84rem; color: var(--muted); margin-bottom: 14px; line-height: 1.45;">
+          Al confirmar la cancelación:
+          <br />1. Las unidades se <strong>devolverán automáticamente al stock</strong> de la carta.
+          <br />2. La orden saldrá de la bandeja <strong>En Curso</strong> y quedará archivada en
+          <strong>Historial / Auditoría de Canceladas</strong>.
+        </p>
+
+        <div style="display: flex; gap: 10px; margin-top: 16px;">
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="confirmarCancelacionPedido()"
+          >
+            CONFIRMAR CANCELACIÓN
+          </button>
+          <button
+            type="button"
+            class="tab-arc-btn"
+            (click)="pedidoPorCancelar.set(null)"
+          >
+            Mantener Orden
           </button>
         </div>
       </div>

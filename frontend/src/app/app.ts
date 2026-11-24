@@ -147,7 +147,9 @@ export class App implements OnInit, OnDestroy {
 
   // Pedidos, Tiempo Estimado Dinámico, Escáner de Barra y Arqueo de Caja
   pedidos = signal<Pedido[]>([]);
-  filtroEstadoPedido = signal<string>('TODOS');
+  subVistaMisPedidos = signal<'EN_CURSO' | 'HISTORIAL'>('EN_CURSO');
+  filtroEstadoPedido = signal<string>('EN_CURSO');
+  pedidoPorCancelar = signal<Pedido | null>(null);
   fechaRecaudacion = new Date().toISOString().slice(0, 10);
   totalRecaudadoDia = signal<number>(0);
   arqueoDetalle = signal<ArqueoCajaResponse | null>(null);
@@ -157,9 +159,40 @@ export class App implements OnInit, OnDestroy {
     this.pedidos().filter((p) => p.estado === 'LISTO')
   );
 
+  pedidosEnCurso = computed(() =>
+    [...this.pedidos()]
+      .filter(
+        (p) =>
+          p.estado === 'NUEVO' ||
+          p.estado === 'EN_PREPARACION' ||
+          p.estado === 'LISTO'
+      )
+      .sort((a, b) => b.id - a.id)
+  );
+
+  pedidosHistorial = computed(() =>
+    [...this.pedidos()]
+      .filter((p) => p.estado === 'ENTREGADO' || p.estado === 'CANCELADO')
+      .sort((a, b) => b.id - a.id)
+  );
+
+  misPedidosVisibles = computed(() =>
+    this.subVistaMisPedidos() === 'EN_CURSO'
+      ? this.pedidosEnCurso()
+      : this.pedidosHistorial()
+  );
+
   pedidosFiltrados = computed(() => {
     const est = this.filtroEstadoPedido();
     const lista = [...this.pedidos()].sort((a, b) => b.id - a.id);
+    if (est === 'EN_CURSO') {
+      return lista.filter(
+        (p) =>
+          p.estado === 'NUEVO' ||
+          p.estado === 'EN_PREPARACION' ||
+          p.estado === 'LISTO'
+      );
+    }
     if (est === 'TODOS') return lista;
     return lista.filter((p) => p.estado === est);
   });
@@ -170,7 +203,8 @@ export class App implements OnInit, OnDestroy {
       nuevos: todos.filter((p) => p.estado === 'NUEVO').length,
       preparacion: todos.filter((p) => p.estado === 'EN_PREPARACION').length,
       listos: todos.filter((p) => p.estado === 'LISTO').length,
-      entregados: todos.filter((p) => p.estado === 'ENTREGADO').length
+      entregados: todos.filter((p) => p.estado === 'ENTREGADO').length,
+      cancelados: todos.filter((p) => p.estado === 'CANCELADO').length
     };
   });
 
@@ -595,6 +629,7 @@ export class App implements OnInit, OnDestroy {
           `Orden ${pedidoCreado.codigo} emitida (PIN recojo: ${pedidoCreado.pinEntrega || '----'})`
         );
         this.cargarProductos();
+        this.subVistaMisPedidos.set('EN_CURSO');
         this.vistaActiva.set('MIS_PEDIDOS');
         this.cargarPedidos(true);
       },
@@ -682,6 +717,17 @@ export class App implements OnInit, OnDestroy {
     });
   }
 
+  solicitarCancelacionPedido(pedido: Pedido): void {
+    this.pedidoPorCancelar.set(pedido);
+  }
+
+  confirmarCancelacionPedido(): void {
+    const ped = this.pedidoPorCancelar();
+    if (!ped) return;
+    this.pedidoPorCancelar.set(null);
+    this.actualizarEstadoPedido(ped, { estado: 'CANCELADO' });
+  }
+
   actualizarEstadoPedido(
     pedido: Pedido,
     cambios: { estado?: string; estadoPago?: string }
@@ -738,21 +784,35 @@ export class App implements OnInit, OnDestroy {
     const entregadosHoy = this.pedidos().filter(
       (p) => p.estado === 'ENTREGADO' && (p.fechaRegistro || '').startsWith(this.fechaRecaudacion)
     );
+    const canceladosHoy = this.pedidos().filter(
+      (p) => p.estado === 'CANCELADO' && (p.fechaRegistro || '').startsWith(this.fechaRecaudacion)
+    );
     const lineas: string[] = [
-      'REPORTE DE ARQUEO Y CIERRE DE CAJA - CAFETERIA UTP SEDE PIURA',
+      'REPORTE DE ARQUEO, CIERRE DE CAJA Y AUDITORIA - CAFETERIA UTP SEDE PIURA',
       `Fecha de Arqueo;,${this.fechaRecaudacion}`,
       `Total Recaudado (S/);,${(arq?.totalRecaudado ?? 0).toFixed(2)}`,
       `Ingresos por YAPE (S/);,${(arq?.totalYape ?? 0).toFixed(2)}`,
       `Ingresos por PLIN (S/);,${(arq?.totalPlin ?? 0).toFixed(2)}`,
       `Ingresos por TARJETA (S/);,${(arq?.totalTarjeta ?? 0).toFixed(2)}`,
       `Ordenes Entregadas;,${arq?.cantidadEntregados ?? entregadosHoy.length}`,
+      `Ordenes Canceladas (Auditoria Stock);,${canceladosHoy.length}`,
       '',
-      'DETALLE DE COMANDAS ENTREGADAS',
+      '1. DETALLE CONTABLE DE COMANDAS ENTREGADAS',
       'Codigo,Fecha,Cliente,Metodo Pago,Referencia,Horario Recojo,Total (S/)'
     ];
     for (const p of entregadosHoy) {
       lineas.push(
         `${p.codigo},${p.fechaRegistro},"${p.nombreCliente || p.codigoCliente || p.clienteId}",${p.metodoPago},${p.referenciaPago || 'MANUAL'},"${p.horarioRecojo || 'INMEDIATO'}",${p.total.toFixed(2)}`
+      );
+    }
+    lineas.push(
+      '',
+      '2. REGISTRO DE AUDITORIA - ORDENES CANCELADAS (STOCK DEVUELTO AL INVENTARIO)',
+      'Codigo,Fecha,Cliente,Metodo Pago,Estado Pago,Horario Recojo,Monto Anulado (S/)'
+    );
+    for (const c of canceladosHoy) {
+      lineas.push(
+        `${c.codigo},${c.fechaRegistro},"${c.nombreCliente || c.codigoCliente || c.clienteId}",${c.metodoPago},${c.estadoPago},"${c.horarioRecojo || 'INMEDIATO'}",${c.total.toFixed(2)}`
       );
     }
     const contenidoCsv = '\uFEFF' + lineas.join('\r\n');
