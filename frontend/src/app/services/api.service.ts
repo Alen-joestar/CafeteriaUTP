@@ -20,9 +20,14 @@ export class ApiService {
     return this.http.post<LoginResponse>(`${this.baseUrl}/auth/login`, { identificador, password });
   }
 
-  loginSsoInstitucional(correo: string, nombreCompleto?: string): Observable<LoginResponse> {
+  loginSsoInstitucional(
+    correo: string,
+    password: string,
+    nombreCompleto?: string
+  ): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.baseUrl}/auth/sso-utp`, {
       correo,
+      password,
       nombreCompleto
     });
   }

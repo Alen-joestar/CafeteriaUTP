@@ -1262,9 +1262,9 @@
                 class="btn-emitir"
                 style="background: var(--green); margin-bottom: 8px;"
                 [disabled]="cargando()"
-                (click)="simularPagoInstantaneoUtpPay()"
+                (click)="procesarPagoInstantaneoUtpPay()"
               >
-                <span>SIMULAR PAGO INSTANTÁNEO {{ metodoPago }} (APROBADO)</span>
+                <span>CONFIRMAR PAGO CON QR {{ metodoPago }}</span>
               </button>
             </div>
           </div>
@@ -1273,7 +1273,7 @@
             <label>O ingresa N° de Operación manual (Validación Antifraude):</label>
             <input
               type="text"
-              placeholder="Ej. 948201 (No se permiten códigos repetidos)"
+              placeholder="Ej. 948201 (Código único de operación)"
               [(ngModel)]="referenciaPago"
             />
           </div>
@@ -1285,20 +1285,20 @@
               [disabled]="cargando()"
               (click)="confirmarPedido()"
             >
-              EMITIR CON REFERENCIA MANUAL
+              EMITIR CON N° DE OPERACIÓN
             </button>
             <button type="button" class="tab-arc-btn" (click)="mostrarModalPasarela.set(false)">
               Cancelar
             </button>
           </div>
         } @else {
-          <!-- Simulación de Tarjeta Visa / Mastercard -->
+          <!-- Pago con Tarjeta Visa / Mastercard -->
           <div class="field-group">
-            <label>Número de Tarjeta (Simulación)</label>
+            <label>Número de Tarjeta</label>
             <input type="text" [(ngModel)]="tarjetaNumero" />
           </div>
           <div class="field-group">
-            <label>Titular</label>
+            <label>Titular de la Tarjeta</label>
             <input type="text" [(ngModel)]="tarjetaTitular" />
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -1317,7 +1317,7 @@
               class="btn-emitir"
               style="background: var(--green);"
               [disabled]="cargando()"
-              (click)="simularPagoInstantaneoUtpPay()"
+              (click)="procesarPagoInstantaneoUtpPay()"
             >
               PAGAR S/ {{ totalMontoCarrito() | number: '1.2-2' }} CON TARJETA
             </button>
@@ -1480,7 +1480,12 @@
 
         @if (modoAuth() === 'LOGIN') {
           <form (ngSubmit)="iniciarSesion()">
-            <h3 style="margin-bottom: 6px;">Acceso Universitario UTP</h3>
+            <h3
+              style="margin-bottom: 6px; cursor: pointer;"
+              (dblclick)="mostrarAccesoRapido.set(!mostrarAccesoRapido())"
+            >
+              Acceso Universitario UTP
+            </h3>
             <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
               Ingresa con tu código UTP o cuenta administrativa de Cafetería.
             </p>
@@ -1490,7 +1495,7 @@
               <input
                 type="text"
                 name="loginIdentificador"
-                placeholder="Ej. U2303001 o ADMIN"
+                placeholder="Ej. U2303001 o correo@utp.edu.pe"
                 [(ngModel)]="loginIdentificador"
                 required
               />
@@ -1507,17 +1512,19 @@
               />
             </div>
 
-            <div class="demo-access-strip">
-              <span>Acceso rápido:</span>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button type="button" class="action-pill" (click)="autocompletarEstudiante()">
-                  Estudiante (U2303001)
-                </button>
-                <button type="button" class="action-pill" (click)="autocompletarAdmin()">
-                  Admin (CAFETERIA)
-                </button>
+            @if (mostrarAccesoRapido()) {
+              <div class="demo-access-strip">
+                <span>Perfiles:</span>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button type="button" class="action-pill" (click)="autocompletarEstudiante()">
+                    Estudiante (U2303001)
+                  </button>
+                  <button type="button" class="action-pill" (click)="autocompletarAdmin()">
+                    Admin (CAFETERIA)
+                  </button>
+                </div>
               </div>
-            </div>
+            }
 
             <div style="display: flex; gap: 10px; margin-top: 16px;">
               <button type="submit" class="btn-emitir" [disabled]="cargando()">
@@ -1533,10 +1540,10 @@
             <span class="arch-hero-tag" style="background: var(--ink); margin-bottom: 8px;">
               MICROSOFT 365 · IDENTIDAD INSTITUCIONAL UTP
             </span>
-            <h3 style="margin-bottom: 6px;">Acceso Único con Correo @utp.edu.pe</h3>
+            <h3 style="margin-bottom: 6px;">Portal Institucional @utp.edu.pe</h3>
             <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 14px;">
-              Simulación de Single Sign-On (SSO) universitario sin costo externo. Valida tu dominio
-              institucional y emite tu sesión JWT al instante.
+              Inicia sesión con tus credenciales institucionales de la Universidad Tecnológica del
+              Perú. Si es tu primer ingreso, tu cuenta quedará vinculada con esta contraseña.
             </p>
 
             <div class="field-group">
@@ -1551,18 +1558,24 @@
             </div>
 
             <div class="field-group">
-              <label>Nombre del Estudiante</label>
+              <label>Contraseña Institucional</label>
+              <input
+                type="password"
+                name="ssoPassword"
+                placeholder="••••••••"
+                [(ngModel)]="ssoPassword"
+                required
+              />
+            </div>
+
+            <div class="field-group">
+              <label>Nombre Completo (solo si es tu primer ingreso)</label>
               <input
                 type="text"
                 name="ssoNombre"
                 placeholder="Ej. Carlos Pérez"
                 [(ngModel)]="ssoNombre"
               />
-            </div>
-
-            <div class="demo-access-strip">
-              <span>Token Authenticator UTP simulado:</span>
-              <strong>CÓDIGO: {{ ssoPinSimulado }} (Verificado)</strong>
             </div>
 
             <div style="display: flex; gap: 10px; margin-top: 16px;">
@@ -1572,7 +1585,7 @@
                 style="background: var(--green);"
                 [disabled]="cargando()"
               >
-                CONTINUAR CON CUENTA @utp.edu.pe
+                AUTENTICAR CON CUENTA @utp.edu.pe
               </button>
               <button type="button" class="tab-arc-btn" (click)="mostrarModalAuth.set(false)">
                 Cerrar

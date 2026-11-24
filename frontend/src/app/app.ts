@@ -45,6 +45,7 @@ export class App implements OnInit, OnDestroy {
 
   // Modal Auth + SSO Institucional @utp.edu.pe
   mostrarModalAuth = signal(false);
+  mostrarAccesoRapido = signal(false);
   modoAuth = signal<'LOGIN' | 'REGISTRO' | 'SSO'>('LOGIN');
   loginIdentificador = '';
   loginPassword = '';
@@ -52,9 +53,9 @@ export class App implements OnInit, OnDestroy {
   regCorreo = '';
   regNombre = '';
   regPassword = '';
-  ssoCorreo = 'u2303001@utp.edu.pe';
-  ssoNombre = 'Carlos Pérez';
-  ssoPinSimulado = '849210';
+  ssoCorreo = '';
+  ssoPassword = '';
+  ssoNombre = '';
 
   // Notificaciones Toast y Audio en Tiempo Real
   notificacion = signal<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
@@ -401,16 +402,26 @@ export class App implements OnInit, OnDestroy {
       this.mostrarMensaje('error', 'Usa un correo institucional válido terminado en @utp.edu.pe');
       return;
     }
+    if (!this.ssoPassword || this.ssoPassword.length < 8) {
+      this.mostrarMensaje('error', 'Ingresa tu contraseña institucional (mínimo 8 caracteres)');
+      return;
+    }
     this.cargando.set(true);
-    this.api.loginSsoInstitucional(correo, this.ssoNombre.trim()).subscribe({
-      next: (resp) => {
-        this.completarInicioSesion(resp, 'SSO Microsoft @utp.edu.pe verificado');
-      },
-      error: (err) => {
-        this.cargando.set(false);
-        this.mostrarMensaje('error', err?.error?.error || 'No se pudo autenticar con SSO UTP');
-      }
-    });
+    this.api
+      .loginSsoInstitucional(correo, this.ssoPassword, this.ssoNombre.trim())
+      .subscribe({
+        next: (resp) => {
+          this.ssoPassword = '';
+          this.completarInicioSesion(resp, 'Cuenta institucional @utp.edu.pe autenticada');
+        },
+        error: (err) => {
+          this.cargando.set(false);
+          this.mostrarMensaje(
+            'error',
+            err?.error?.error || 'Credenciales institucionales incorrectas'
+          );
+        }
+      });
   }
 
   private completarInicioSesion(resp: LoginResponse, prefijo?: string): void {
@@ -567,7 +578,7 @@ export class App implements OnInit, OnDestroy {
     this.mostrarModalPasarela.set(true);
   }
 
-  simularPagoInstantaneoUtpPay(): void {
+  procesarPagoInstantaneoUtpPay(): void {
     const sufijo = Math.floor(100000 + Math.random() * 900000);
     this.referenciaPago = `UTPPAY-${this.metodoPago}-${sufijo}`;
     this.confirmarPedido();

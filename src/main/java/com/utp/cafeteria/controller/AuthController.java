@@ -84,24 +84,36 @@ public class AuthController {
     @PostMapping("/sso-utp")
     public ResponseEntity<LoginResponse> loginSsoInstitucional(@RequestBody java.util.Map<String, String> body) {
         String correoRaw = body.getOrDefault("correo", "").trim().toLowerCase();
+        String passwordRaw = body.getOrDefault("password", "");
         String nombreRaw = body.getOrDefault("nombreCompleto", "").trim();
+
         if (correoRaw.isEmpty() || !correoRaw.endsWith("@utp.edu.pe")) {
             throw new IllegalArgumentException("Debes ingresar un correo institucional válido con dominio @utp.edu.pe");
         }
+        if (passwordRaw == null || passwordRaw.length() < 8) {
+            throw new IllegalArgumentException("Ingresa tu contraseña institucional (mínimo 8 caracteres)");
+        }
+
         String codigoExtraido = correoRaw.substring(0, correoRaw.indexOf('@')).toUpperCase();
-        Usuario usuario = usuarios.buscarPorIdentificador(correoRaw)
-                .or(() -> usuarios.buscarPorIdentificador(codigoExtraido))
-                .orElseGet(() -> {
-                    String nombre = nombreRaw.isEmpty() ? "Estudiante UTP (" + codigoExtraido + ")" : nombreRaw;
-                    Usuario nuevo = new Usuario(
-                            null,
-                            codigoExtraido,
-                            correoRaw,
-                            nombre,
-                            "CafeAdmin2026",
-                            "ESTUDIANTE");
-                    return usuarioService.registrar(nuevo);
-                });
+        var existente = usuarios.buscarPorIdentificador(correoRaw)
+                .or(() -> usuarios.buscarPorIdentificador(codigoExtraido));
+
+        Usuario usuario;
+        if (existente.isPresent()) {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(existente.get().getCodigo(), passwordRaw));
+            usuario = existente.get();
+        } else {
+            String nombre = nombreRaw.isEmpty() ? "Estudiante " + codigoExtraido : nombreRaw;
+            Usuario nuevo = new Usuario(
+                    null,
+                    codigoExtraido,
+                    correoRaw,
+                    nombre,
+                    passwordRaw,
+                    "ESTUDIANTE");
+            usuario = usuarioService.registrar(nuevo);
+        }
 
         String token = jwtService.generarToken(usuario.getCodigo(), usuario.getRol());
         LoginResponse response = new LoginResponse(
