@@ -126,7 +126,26 @@ public class PedidoService {
 
         if (dto.estado() != null && !dto.estado().isBlank()) {
             String nuevoEstado = validarEstado(dto.estado());
-            if ("CANCELADO".equals(nuevoEstado) && !"CANCELADO".equalsIgnoreCase(pedido.getEstado())) {
+            String estadoActual = pedido.getEstado() == null ? "NUEVO" : pedido.getEstado().toUpperCase(Locale.ROOT);
+
+            if ("CANCELADO".equals(estadoActual) && !"CANCELADO".equals(nuevoEstado)) {
+                throw new IllegalArgumentException(
+                        "Un pedido CANCELADO ya devolvió su stock al inventario y no puede reactivarse");
+            }
+            if ("ENTREGADO".equals(estadoActual) && !"ENTREGADO".equals(nuevoEstado)) {
+                throw new IllegalArgumentException(
+                        "Un pedido ENTREGADO ya fue cerrado contablemente y no puede cambiar de estado");
+            }
+
+            List<String> flujoProgresivo = List.of("NUEVO", "EN_PREPARACION", "LISTO", "ENTREGADO");
+            int idxActual = flujoProgresivo.indexOf(estadoActual);
+            int idxNuevo = flujoProgresivo.indexOf(nuevoEstado);
+            if (idxActual >= 0 && idxNuevo >= 0 && idxNuevo < idxActual) {
+                throw new IllegalArgumentException(
+                        "Flujo inválido: no se puede retroceder un pedido de " + estadoActual + " a " + nuevoEstado);
+            }
+
+            if ("CANCELADO".equals(nuevoEstado) && !"CANCELADO".equalsIgnoreCase(estadoActual)) {
                 devolverStock(pedido);
             }
             pedido.setEstado(nuevoEstado);

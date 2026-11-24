@@ -892,6 +892,12 @@
   border-color: var(--utp-red);
 }
 
+.action-pill:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ==================== COLUMNA 3: TICKET PERFORADO REAL ==================== */
 .ticket-dock {
   background: var(--bg-sand);

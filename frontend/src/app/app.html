@@ -946,7 +946,14 @@
                       <strong class="font-mono" style="font-size: 0.95rem;">
                         Total: S/ {{ ped.total | number: '1.2-2' }}
                       </strong>
-                      @if (ped.estadoPago !== 'PAGADO') {
+                      @if (ped.estado === 'CANCELADO') {
+                        <span
+                          class="action-pill"
+                          style="min-width: 138px; justify-content: center; background: var(--utp-red-soft); color: var(--utp-red); border-color: var(--utp-red); cursor: default;"
+                        >
+                          <span>Orden Anulada</span>
+                        </span>
+                      } @else if (ped.estadoPago !== 'PAGADO') {
                         <button
                           type="button"
                           class="action-pill green"
@@ -977,6 +984,7 @@
                       <button
                         type="button"
                         class="action-pill"
+                        [disabled]="ped.estado !== 'NUEVO'"
                         (click)="actualizarEstadoPedido(ped, { estado: 'EN_PREPARACION' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -988,6 +996,7 @@
                       <button
                         type="button"
                         class="action-pill amber"
+                        [disabled]="ped.estado !== 'NUEVO' && ped.estado !== 'EN_PREPARACION'"
                         (click)="actualizarEstadoPedido(ped, { estado: 'LISTO' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -1000,6 +1009,7 @@
                       <button
                         type="button"
                         class="action-pill green"
+                        [disabled]="ped.estado === 'ENTREGADO' || ped.estado === 'CANCELADO'"
                         (click)="actualizarEstadoPedido(ped, { estado: 'ENTREGADO', estadoPago: 'PAGADO' })"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
@@ -1013,6 +1023,7 @@
                         class="action-pill red"
                         style="padding: 6px 10px;"
                         title="Cancelar orden"
+                        [disabled]="ped.estado === 'ENTREGADO' || ped.estado === 'CANCELADO'"
                         (click)="solicitarCancelacionPedido(ped)"
                       >
                         <svg class="icon-sm" viewBox="0 0 24 24">
