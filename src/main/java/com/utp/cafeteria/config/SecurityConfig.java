@@ -70,9 +70,10 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/registro").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/auth/password").authenticated()
 
                         .requestMatchers(HttpMethod.GET, "/api/productos", "/api/productos/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/pedidos/monitor-barra").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/monitor-barra", "/api/pedidos/estado-cocina").permitAll()
 
                         .requestMatchers("/api/usuarios", "/api/usuarios/**").hasRole("CAFETERIA")
                         .requestMatchers(HttpMethod.POST, "/api/productos", "/api/productos/**").hasRole("CAFETERIA")

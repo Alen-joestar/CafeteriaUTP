@@ -72,6 +72,18 @@ public class ProductoService {
         return true;
     }
 
+    public List<Producto> reabastecerStockCritico() {
+        List<Producto> todos = repository.findAll();
+        for (Producto p : todos) {
+            if (p.getStock() == null || p.getStock() <= 5 || !Boolean.TRUE.equals(p.getDisponible())) {
+                p.setStock(20);
+                p.setDisponible(true);
+                repository.save(p);
+            }
+        }
+        return repository.findAll();
+    }
+
     private void validar(Producto producto) {
         if (producto.getNombre() == null || producto.getNombre().isBlank()) throw new IllegalArgumentException("El nombre es obligatorio");
         if (producto.getCategoria() == null || producto.getCategoria().isBlank()) throw new IllegalArgumentException("La categoría es obligatoria");

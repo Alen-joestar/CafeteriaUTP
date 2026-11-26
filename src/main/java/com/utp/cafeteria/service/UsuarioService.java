@@ -77,6 +77,22 @@ public class UsuarioService {
         return true;
     }
 
+    public void cambiarPasswordPropia(String identificador, String passwordActual, String passwordNueva) {
+        if (passwordActual == null || passwordActual.isBlank()) {
+            throw new IllegalArgumentException("Ingresa tu contraseña actual");
+        }
+        if (passwordNueva == null || passwordNueva.length() < 8) {
+            throw new IllegalArgumentException("La nueva contraseña debe tener al menos 8 caracteres");
+        }
+        Usuario usuario = usuarioRepository.buscarPorIdentificador(identificador)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario autenticado no encontrado"));
+        if (!passwordEncoder.matches(passwordActual, usuario.getPassword())) {
+            throw new IllegalArgumentException("La contraseña actual ingresada es incorrecta");
+        }
+        usuario.setPassword(passwordEncoder.encode(passwordNueva));
+        usuarioRepository.save(usuario);
+    }
+
     private void validarDatos(Usuario usuario) {
         if (usuario.getCodigo() == null || usuario.getCodigo().isBlank() || usuario.getCorreo() == null || usuario.getCorreo().isBlank()
                 || usuario.getNombreCompleto() == null || usuario.getNombreCompleto().isBlank())

@@ -31,6 +31,8 @@ public class PedidoService {
     private final ProductoRepository productos;
     private final UsuarioRepository usuarios;
     private final PasarelaPago pasarelaPago;
+    private volatile boolean cocinaAbierta = true;
+    private volatile String motivoPausaCocina = "Pausa operativa por cambio de turno";
 
     public PedidoService(PedidoRepository pedidos, ProductoRepository productos, UsuarioRepository usuarios,
             PasarelaPago pasarelaPago) {
@@ -51,6 +53,10 @@ public class PedidoService {
     }
 
     public Pedido crearPedido(SolicitudPedidoDTO solicitud) {
+        if (!cocinaAbierta) {
+            throw new IllegalArgumentException(
+                    "La recepción de pedidos en cocina está temporalmente en pausa (" + motivoPausaCocina + ")");
+        }
         var cliente = usuarios.findById(solicitud.getClienteId())
                 .orElseThrow(() -> new IllegalArgumentException("El cliente indicado no existe"));
         String metodo = normalizarMetodoPago(solicitud.getMetodoPago());
@@ -77,7 +83,8 @@ public class PedidoService {
         double montoExtras = (solicitud.getMontoExtras() != null && solicitud.getMontoExtras() > 0)
                 ? solicitud.getMontoExtras()
                 : 0.0;
-        double total = detalles.stream().mapToDouble(DetallePedido::getSubtotal).sum() + montoExtras;
+        double descuentoCombo = calcularDescuentoCombo(detalles);
+        double total = Math.max(0.0, detalles.stream().mapToDouble(DetallePedido::getSubtotal).sum() + montoExtras - descuentoCombo);
 
         Pedido pedido = new Pedido();
         pedido.setCodigo("CAF-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT));
@@ -97,6 +104,7 @@ public class PedidoService {
         pedido.setHorarioRecojo(horario);
         pedido.setCremasYExtras(solicitud.getCremasYExtras());
         pedido.setMontoExtras(montoExtras);
+        pedido.setDescuentoCombo(descuentoCombo);
         return pedidos.save(pedido);
     }
 
@@ -365,6 +373,68 @@ public class PedidoService {
             throw new IllegalArgumentException("Solo se pueden calificar pedidos que ya fueron ENTREGADOS");
         }
         pedido.setCalificacion(calificacion);
+        return pedidos.save(pedido);
+    }
+
+    private double calcularDescuentoCombo(List<DetallePedido> detalles) {
+        boolean tieneSalado = false;
+        boolean tieneBebida = false;
+        boolean tienePostre = false;
+        for (DetallePedido d : detalles) {
+            String cat = (d.getProducto() != null && d.getProducto().getCategoria() != null)
+                    ? d.getProducto().getCategoria().toUpperCase(Locale.ROOT)
+                    : "";
+            if ("SANDWICH".equals(cat) || "ANTOJITOS".equals(cat)) tieneSalado = true;
+            else if ("BEBIDAS".equals(cat)) tieneBebida = true;
+            else if ("ENDULZATE".equals(cat)) tienePostre = true;
+        }
+        if (tieneSalado && tieneBebida && tienePostre) {
+            return 2.0;
+        }
+        if (tieneSalado && tieneBebida) {
+            return 1.0;
+        }
+        return 0.0;
+    }
+
+    public java.util.Map<String, Object> obtenerEstadoCocina() {
+        return java.util.Map.of(
+                "cocinaAbierta", cocinaAbierta,
+                "motivoPausa", motivoPausaCocina);
+    }
+
+    public java.util.Map<String, Object> cambiarEstadoCocina(boolean abierta, String motivo) {
+        this.cocinaAbierta = abierta;
+        if (motivo != null && !motivo.isBlank()) {
+            this.motivoPausaCocina = motivo.trim();
+        }
+        return obtenerEstadoCocina();
+    }
+
+    public Pedido reportarIncidencia(Long id, String tipo, String detalle, Long usuarioAutenticadoId) {
+        if (detalle == null || detalle.isBlank()) {
+            throw new IllegalArgumentException("Describe brevemente el detalle de la incidencia");
+        }
+        Pedido pedido = pedidos.buscarPorIdCompleto(id).orElse(null);
+        if (pedido == null) return null;
+        if (usuarioAutenticadoId != null && !usuarioAutenticadoId.equals(pedido.getClienteId())) {
+            throw new IllegalArgumentException("Solo puedes reportar incidencias sobre tus propios boletos");
+        }
+        pedido.setIncidenciaTipo(tipo != null && !tipo.isBlank() ? tipo.trim().toUpperCase(Locale.ROOT) : "INCIDENCIA_SERVICIO");
+        pedido.setIncidenciaDetalle(detalle.trim());
+        pedido.setIncidenciaEstado("ABIERTA");
+        pedido.setIncidenciaFecha(LocalDateTime.now().format(FECHA));
+        return pedidos.save(pedido);
+    }
+
+    public Pedido resolverIncidencia(Long id, String respuesta) {
+        if (respuesta == null || respuesta.isBlank()) {
+            throw new IllegalArgumentException("Ingresa la acción correctiva o respuesta para cerrar el ticket ITIL");
+        }
+        Pedido pedido = pedidos.buscarPorIdCompleto(id).orElse(null);
+        if (pedido == null) return null;
+        pedido.setIncidenciaRespuesta(respuesta.trim());
+        pedido.setIncidenciaEstado("RESUELTA");
         return pedidos.save(pedido);
     }
 

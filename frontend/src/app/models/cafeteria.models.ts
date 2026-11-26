@@ -54,8 +54,14 @@ export interface Pedido {
   horarioRecojo?: string;
   cremasYExtras?: string;
   montoExtras?: number;
+  descuentoCombo?: number;
   motivoCancelacion?: string;
   calificacion?: number;
+  incidenciaTipo?: string;
+  incidenciaDetalle?: string;
+  incidenciaEstado?: 'ABIERTA' | 'RESUELTA' | string;
+  incidenciaRespuesta?: string;
+  incidenciaFecha?: string;
   items: DetallePedido[];
 }
 
@@ -68,6 +74,7 @@ export interface SolicitudPedidoDTO {
   horarioRecojo?: string;
   cremasYExtras?: string;
   montoExtras?: number;
+  descuentoCombo?: number;
   items: { productoId: number; cantidad: number }[];
 }
 

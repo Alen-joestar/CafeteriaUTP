@@ -271,8 +271,8 @@
 
 .pass-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
 }
 
 .pass-actions.single-col {
@@ -593,6 +593,30 @@
 .stock-orb.low {
   background: var(--amber);
   color: #fff;
+}
+
+.fav-orb {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  background: var(--surface);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  z-index: 2;
+  transition: 0.15s;
+}
+
+.fav-orb.active {
+  background: #FDE047;
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
 .star-btn {

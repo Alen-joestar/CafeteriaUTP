@@ -25,7 +25,7 @@ export class App implements OnInit, OnDestroy {
 
   // Navegación
   vistaActiva = signal<'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'>('CATALOGO');
-  subVistaAdmin = signal<'PEDIDOS' | 'PRODUCTOS' | 'USUARIOS'>('PEDIDOS');
+  subVistaAdmin = signal<'PEDIDOS' | 'PRODUCTOS' | 'USUARIOS' | 'INCIDENCIAS'>('PEDIDOS');
 
   // Sesión
   sesion = signal<LoginResponse | null>(null);
@@ -43,7 +43,7 @@ export class App implements OnInit, OnDestroy {
     return base.substring(0, 2).toUpperCase();
   });
 
-  // Modal Auth
+  // Modal Auth y Cambio de Contraseña Propia
   mostrarModalAuth = signal(false);
   mostrarAccesoRapido = signal(false);
   modoAuth = signal<'LOGIN' | 'REGISTRO'>('LOGIN');
@@ -53,23 +53,32 @@ export class App implements OnInit, OnDestroy {
   regCorreo = '';
   regNombre = '';
   regPassword = '';
+  mostrarModalPassword = signal(false);
+  passActual = '';
+  passNueva = '';
 
-  // Notificaciones Toast y Audio en Tiempo Real
+  // Notificaciones Toast, Audio en Tiempo Real y Estado Operativo de Cocina
   notificacion = signal<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
   cargando = signal(false);
   alertasSonorasActivas = signal(true);
+  cocinaAbierta = signal(true);
+  motivoPausaCocina = signal('Pausa operativa por cambio de turno');
 
-  // Catálogo y Filtros
+  // Catálogo, Filtros y Platos Favoritos
   productos = signal<Producto[]>([]);
+  favoritosIds = signal<number[]>([]);
   categoriaSeleccionada = signal<string>('TODOS');
   busquedaProducto = signal<string>('');
-  readonly categorias = ['TODOS', 'SANDWICH', 'ANTOJITOS', 'BEBIDAS', 'ENDULZATE'];
+  readonly categorias = ['TODOS', 'FAVORITOS', 'SANDWICH', 'ANTOJITOS', 'BEBIDAS', 'ENDULZATE'];
 
   productosFiltrados = computed(() => {
     const cat = this.categoriaSeleccionada();
     const texto = this.busquedaProducto().trim().toLowerCase();
+    const favs = this.favoritosIds();
     return this.productos().filter((p) => {
-      const coincideCat = cat === 'TODOS' || p.categoria?.toUpperCase() === cat;
+      const coincideCat =
+        cat === 'TODOS' ||
+        (cat === 'FAVORITOS' ? favs.includes(p.id ?? -1) : p.categoria?.toUpperCase() === cat);
       const coincideTexto =
         !texto ||
         p.nombre.toLowerCase().includes(texto) ||
@@ -190,12 +199,42 @@ export class App implements OnInit, OnDestroy {
     return partes.join(' | ');
   });
 
+  descuentoComboCarrito = computed(() => {
+    if (this.carrito().length === 0) return 0;
+    const grupos = this.gruposCategoriasEnCarrito();
+    if (grupos.has('SALADO') && grupos.has('BEBIDAS') && grupos.has('ENDULZATE')) {
+      return 2.0;
+    }
+    if (grupos.has('SALADO') && grupos.has('BEBIDAS')) {
+      return 1.0;
+    }
+    return 0;
+  });
+
+  sugerenciaComboCarrito = computed(() => {
+    if (this.carrito().length === 0) return '';
+    const grupos = this.gruposCategoriasEnCarrito();
+    if (grupos.has('SALADO') && !grupos.has('BEBIDAS')) {
+      return 'Combo UTP: Agrega una Bebida y obtén -S/ 1.00 de descuento';
+    }
+    if (!grupos.has('SALADO') && grupos.has('BEBIDAS')) {
+      return 'Combo UTP: Agrega un Sándwich o Antojito y obtén -S/ 1.00';
+    }
+    if (grupos.has('SALADO') && grupos.has('BEBIDAS') && !grupos.has('ENDULZATE')) {
+      return '¡Combo Dúo activo (-S/ 1.00)! Agrega un Postre para Combo Full (-S/ 2.00)';
+    }
+    if (grupos.has('SALADO') && grupos.has('BEBIDAS') && grupos.has('ENDULZATE')) {
+      return '¡Combo Full Universitario UTP activo (-S/ 2.00)!';
+    }
+    return '';
+  });
+
   totalMontoCarrito = computed(() => {
     const base = this.carrito().reduce(
       (acc, item) => acc + item.producto.precio * item.cantidad,
       0
     );
-    return base + this.montoExtrasCarrito();
+    return Math.max(0, base + this.montoExtrasCarrito() - this.descuentoComboCarrito());
   });
 
   // Pasarela de Pago Interactiva "UTP Pay" y Boleta Electrónica SUNAT
@@ -312,6 +351,22 @@ export class App implements OnInit, OnDestroy {
     return Math.min(25, 5 + enCola * 2);
   });
 
+  // Mesa de Ayuda / Gestión de Incidencias ITIL
+  pedidoIncidenciaModal = signal<Pedido | null>(null);
+  incidenciaTipoForm = 'DEMORA_EN_BARRA';
+  incidenciaDetalleForm = '';
+  respuestasIncidenciaAdmin: Record<number, string> = {};
+
+  pedidosConIncidencia = computed(() =>
+    [...this.pedidos()]
+      .filter((p) => !!p.incidenciaEstado)
+      .sort((a, b) => b.id - a.id)
+  );
+
+  incidenciasAbiertasCount = computed(
+    () => this.pedidos().filter((p) => p.incidenciaEstado === 'ABIERTA').length
+  );
+
   // Admin: Formulario Producto
   mostrarModalProducto = signal(false);
   productoEditandoId = signal<number | null>(null);
@@ -325,8 +380,10 @@ export class App implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.restaurarSesion();
+    this.restaurarFavoritos();
     this.cargarProductos();
     this.cargarMonitorBarra();
+    this.cargarEstadoCocina();
     if (this.estaAutenticado()) {
       this.cargarPedidos(true);
       if (this.esCafeteria()) {
@@ -345,6 +402,7 @@ export class App implements OnInit, OnDestroy {
   private iniciarPollingTiempoReal(): void {
     this.pollingTimer = setInterval(() => {
       this.cargarMonitorBarra();
+      this.cargarEstadoCocina();
       if (this.estaAutenticado()) {
         this.cargarPedidos(false);
         if (this.esCafeteria() && this.vistaActiva() === 'ADMIN') {
@@ -352,6 +410,64 @@ export class App implements OnInit, OnDestroy {
         }
       }
     }, 6000);
+  }
+
+  cargarEstadoCocina(): void {
+    this.api.obtenerEstadoCocina().subscribe({
+      next: (est) => {
+        this.cocinaAbierta.set(est.cocinaAbierta);
+        if (est.motivoPausa) {
+          this.motivoPausaCocina.set(est.motivoPausa);
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  alternarEstadoCocinaAdmin(): void {
+    const nuevoEstado = !this.cocinaAbierta();
+    this.api
+      .cambiarEstadoCocina(nuevoEstado, this.motivoPausaCocina())
+      .subscribe({
+        next: (res) => {
+          this.cocinaAbierta.set(res.cocinaAbierta);
+          this.mostrarMensaje(
+            'exito',
+            res.cocinaAbierta
+              ? 'Recepción de pedidos en cocina HABILITADA'
+              : 'Recepción de pedidos en cocina EN PAUSA OPERATIVA'
+          );
+        },
+        error: () =>
+          this.mostrarMensaje('error', 'No se pudo cambiar el estado de la cocina')
+      });
+  }
+
+  private restaurarFavoritos(): void {
+    const raw = localStorage.getItem('cafeteria_favoritos');
+    if (raw) {
+      try {
+        this.favoritosIds.set(JSON.parse(raw));
+      } catch {
+        this.favoritosIds.set([]);
+      }
+    }
+  }
+
+  esFavorito(productoId?: number): boolean {
+    if (!productoId) return false;
+    return this.favoritosIds().includes(productoId);
+  }
+
+  toggleFavorito(productoId?: number, event?: Event): void {
+    event?.stopPropagation();
+    if (!productoId) return;
+    const act = this.favoritosIds();
+    const actualizado = act.includes(productoId)
+      ? act.filter((id) => id !== productoId)
+      : [...act, productoId];
+    this.favoritosIds.set(actualizado);
+    localStorage.setItem('cafeteria_favoritos', JSON.stringify(actualizado));
   }
 
   cargarMonitorBarra(): void {
@@ -512,9 +628,9 @@ export class App implements OnInit, OnDestroy {
     }
   }
 
-  cambiarSubVistaAdmin(sub: 'PEDIDOS' | 'PRODUCTOS' | 'USUARIOS'): void {
+  cambiarSubVistaAdmin(sub: 'PEDIDOS' | 'PRODUCTOS' | 'USUARIOS' | 'INCIDENCIAS'): void {
     this.subVistaAdmin.set(sub);
-    if (sub === 'PEDIDOS') {
+    if (sub === 'PEDIDOS' || sub === 'INCIDENCIAS') {
       this.cargarPedidos(true);
       this.consultarRecaudacion();
     } else if (sub === 'PRODUCTOS') {
@@ -638,6 +754,95 @@ export class App implements OnInit, OnDestroy {
     this.mostrarMensaje('exito', 'Has cerrado sesión correctamente');
   }
 
+  abrirModalCambioPassword(): void {
+    this.passActual = '';
+    this.passNueva = '';
+    this.mostrarModalPassword.set(true);
+  }
+
+  guardarCambioPassword(): void {
+    if (!this.passActual.trim() || this.passNueva.length < 8) {
+      this.mostrarMensaje(
+        'error',
+        'Ingresa tu contraseña actual y una nueva de al menos 8 caracteres'
+      );
+      return;
+    }
+    this.cargando.set(true);
+    this.api.cambiarPasswordPropia(this.passActual, this.passNueva).subscribe({
+      next: () => {
+        this.cargando.set(false);
+        this.mostrarModalPassword.set(false);
+        this.passActual = '';
+        this.passNueva = '';
+        this.mostrarMensaje('exito', 'Tu contraseña ha sido actualizada con éxito');
+      },
+      error: (err) => {
+        this.cargando.set(false);
+        this.mostrarMensaje('error', err?.error?.error || 'No se pudo actualizar la contraseña');
+      }
+    });
+  }
+
+  // ================= MESA DE AYUDA / INCIDENCIAS ITIL =================
+  abrirModalIncidencia(pedido: Pedido): void {
+    this.incidenciaTipoForm = pedido.incidenciaTipo || 'DEMORA_EN_BARRA';
+    this.incidenciaDetalleForm = pedido.incidenciaDetalle || '';
+    this.pedidoIncidenciaModal.set(pedido);
+  }
+
+  enviarIncidenciaEstudiante(): void {
+    const ped = this.pedidoIncidenciaModal();
+    if (!ped) return;
+    if (!this.incidenciaDetalleForm.trim()) {
+      this.mostrarMensaje('error', 'Describe brevemente el incidente ocurrido con tu orden');
+      return;
+    }
+    this.api
+      .reportarIncidencia(ped.id, this.incidenciaTipoForm, this.incidenciaDetalleForm.trim())
+      .subscribe({
+        next: (actualizado) => {
+          this.pedidoIncidenciaModal.set(null);
+          this.pedidos.set(
+            this.pedidos().map((p) => (p.id === actualizado.id ? actualizado : p))
+          );
+          this.mostrarMensaje('exito', `Ticket ITIL registrado para el boleto #${ped.codigo}`);
+        },
+        error: (err) =>
+          this.mostrarMensaje('error', err?.error?.error || 'No se pudo registrar la incidencia')
+      });
+  }
+
+  resolverIncidenciaAdmin(pedido: Pedido): void {
+    const resp = (this.respuestasIncidenciaAdmin[pedido.id] || '').trim();
+    if (!resp) {
+      this.mostrarMensaje('error', 'Escribe la acción correctiva o respuesta antes de resolver');
+      return;
+    }
+    this.api.resolverIncidencia(pedido.id, resp).subscribe({
+      next: (actualizado) => {
+        this.respuestasIncidenciaAdmin[pedido.id] = '';
+        this.pedidos.set(
+          this.pedidos().map((p) => (p.id === actualizado.id ? actualizado : p))
+        );
+        this.mostrarMensaje('exito', `Incidencia del boleto #${pedido.codigo} marcada como RESUELTA`);
+      },
+      error: (err) =>
+        this.mostrarMensaje('error', err?.error?.error || 'No se pudo resolver la incidencia')
+    });
+  }
+
+  reabastecerStockCriticoAdmin(): void {
+    this.api.reabastecerStockCritico().subscribe({
+      next: (lista) => {
+        this.productos.set(lista);
+        this.mostrarMensaje('exito', 'Stock crítico y agotados reabastecidos a 20 unidades');
+      },
+      error: () =>
+        this.mostrarMensaje('error', 'No se pudo reabastecer el stock crítico')
+    });
+  }
+
   // ================= PRODUCTOS Y CARRITO =================
   cargarProductos(): void {
     this.api.listarProductos().subscribe({
@@ -742,6 +947,13 @@ export class App implements OnInit, OnDestroy {
     if (!this.estaAutenticado()) {
       this.abrirModalLogin();
       this.mostrarMensaje('error', 'Inicia sesión o regístrate para emitir tu orden');
+      return;
+    }
+    if (!this.cocinaAbierta()) {
+      this.mostrarMensaje(
+        'error',
+        `Recepción de órdenes en pausa: ${this.motivoPausaCocina()}`
+      );
       return;
     }
     if (this.esCafeteria()) {

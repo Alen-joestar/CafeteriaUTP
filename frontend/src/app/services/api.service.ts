@@ -29,6 +29,13 @@ export class ApiService {
     return this.http.post<Usuario>(`${this.baseUrl}/auth/registro`, datos);
   }
 
+  cambiarPasswordPropia(passwordActual: string, passwordNueva: string): Observable<{ mensaje: string }> {
+    return this.http.patch<{ mensaje: string }>(`${this.baseUrl}/auth/password`, {
+      passwordActual,
+      passwordNueva
+    });
+  }
+
   // Productos
   listarProductos(categoria?: string, disponible?: boolean): Observable<Producto[]> {
     let params = new HttpParams();
@@ -53,7 +60,26 @@ export class ApiService {
     return this.http.delete<void>(`${this.baseUrl}/productos/${id}`);
   }
 
+  reabastecerStockCritico(): Observable<Producto[]> {
+    return this.http.post<Producto[]>(`${this.baseUrl}/productos/reabastecer-criticos`, {});
+  }
+
   // Pedidos
+  obtenerEstadoCocina(): Observable<{ cocinaAbierta: boolean; motivoPausa: string }> {
+    return this.http.get<{ cocinaAbierta: boolean; motivoPausa: string }>(
+      `${this.baseUrl}/pedidos/estado-cocina`
+    );
+  }
+
+  cambiarEstadoCocina(
+    cocinaAbierta: boolean,
+    motivoPausa?: string
+  ): Observable<{ cocinaAbierta: boolean; motivoPausa: string }> {
+    return this.http.patch<{ cocinaAbierta: boolean; motivoPausa: string }>(
+      `${this.baseUrl}/pedidos/estado-cocina`,
+      { cocinaAbierta, motivoPausa }
+    );
+  }
   listarMonitorBarra(): Observable<
     { id: number; codigo: string; nombreCliente: string; codigoCliente: string; horarioRecojo: string }[]
   > {
@@ -83,6 +109,16 @@ export class ApiService {
 
   calificarPedido(id: number, calificacion: number): Observable<Pedido> {
     return this.http.patch<Pedido>(`${this.baseUrl}/pedidos/${id}/calificar`, { calificacion });
+  }
+
+  reportarIncidencia(id: number, tipo: string, detalle: string): Observable<Pedido> {
+    return this.http.post<Pedido>(`${this.baseUrl}/pedidos/${id}/incidencia`, { tipo, detalle });
+  }
+
+  resolverIncidencia(id: number, respuesta: string): Observable<Pedido> {
+    return this.http.patch<Pedido>(`${this.baseUrl}/pedidos/${id}/incidencia/resolver`, {
+      respuesta
+    });
   }
 
   validarEntregaPorPinOCodigo(codigoOPin: string): Observable<Pedido> {
