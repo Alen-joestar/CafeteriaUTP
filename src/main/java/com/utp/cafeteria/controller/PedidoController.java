@@ -57,6 +57,18 @@ public class PedidoController {
                 .toList();
     }
 
+    @GetMapping("/estado-cocina")
+    public ResponseEntity<Map<String, Object>> obtenerEstadoCocina() {
+        return ResponseEntity.ok(service.obtenerEstadoCocina());
+    }
+
+    @PatchMapping("/estado-cocina")
+    public ResponseEntity<Map<String, Object>> cambiarEstadoCocina(@RequestBody Map<String, Object> body) {
+        boolean abierta = Boolean.TRUE.equals(body.get("cocinaAbierta"));
+        String motivo = body.get("motivoPausa") != null ? body.get("motivoPausa").toString() : "";
+        return ResponseEntity.ok(service.cambiarEstadoCocina(abierta, motivo));
+    }
+
     @GetMapping("/recaudacion")
     public ResponseEntity<Map<String, Object>> recaudacion(
             @RequestParam(required = false) String fecha) {
@@ -99,6 +111,30 @@ public class PedidoController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(calificado);
+    }
+
+    @PostMapping("/{id:[0-9]+}/incidencia")
+    public ResponseEntity<Pedido> reportarIncidencia(@PathVariable Long id,
+            @RequestBody Map<String, String> body, Authentication authentication) {
+        String tipo = body.getOrDefault("tipo", "INCIDENCIA_SERVICIO");
+        String detalle = body.getOrDefault("detalle", "");
+        Long uid = esCafeteria(authentication) ? null : usuarioId(authentication);
+        Pedido actualizado = service.reportarIncidencia(id, tipo, detalle, uid);
+        if (actualizado == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(actualizado);
+    }
+
+    @PatchMapping("/{id:[0-9]+}/incidencia/resolver")
+    public ResponseEntity<Pedido> resolverIncidencia(@PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        String respuesta = body.getOrDefault("respuesta", "");
+        Pedido resuelto = service.resolverIncidencia(id, respuesta);
+        if (resuelto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(resuelto);
     }
 
     @PatchMapping("/{id:[0-9]+}/estado")

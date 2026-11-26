@@ -125,20 +125,12 @@
       @if (estaAutenticado()) {
         <div class="pass-actions">
           <button type="button" class="btn-mini" (click)="abrirModalLogin()">
-            <svg class="icon-sm" viewBox="0 0 24 24">
-              <path d="m17 2 4 4-4 4" />
-              <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-              <path d="m7 22-4-4 4-4" />
-              <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-            </svg>
             <span>Cuenta</span>
           </button>
+          <button type="button" class="btn-mini" (click)="abrirModalCambioPassword()">
+            <span>Clave</span>
+          </button>
           <button type="button" class="btn-mini" (click)="cerrarSesion()">
-            <svg class="icon-sm" viewBox="0 0 24 24">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
             <span>Salir</span>
           </button>
         </div>
@@ -204,6 +196,14 @@
     <!-- ==================== VISTA 01: CARTA DEL DÍA ==================== -->
     @if (vistaActiva() === 'CATALOGO') {
       <section>
+        @if (!cocinaAbierta()) {
+          <div
+            style="background: var(--utp-red); color: #fff; border-radius: 18px; padding: 12px 20px; margin-bottom: 18px; font-family: 'Space Mono', monospace; font-size: 0.78rem; font-weight: 700;"
+          >
+            AVISO OPERATIVO: La recepción de órdenes en cocina se encuentra en pausa temporal ({{ motivoPausaCocina() }}).
+          </div>
+        }
+
         <div class="arch-hero">
           <div>
             <span class="arch-hero-tag">
@@ -250,6 +250,7 @@
               (ngModelChange)="cambiarCategoriaSelect($event)"
             >
               <option value="TODOS">Categoría: Todas</option>
+              <option value="FAVORITOS">★ Mis Favoritos ({{ favoritosIds().length }})</option>
               <option value="SANDWICH">Sándwiches</option>
               <option value="ANTOJITOS">Antojitos</option>
               <option value="BEBIDAS">Bebidas</option>
@@ -281,6 +282,16 @@
               class="dome-card"
               [class.agotado]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
             >
+              <button
+                type="button"
+                class="fav-orb"
+                [class.active]="esFavorito(p.id)"
+                title="Marcar/desmarcar plato favorito"
+                (click)="toggleFavorito(p.id, $event)"
+              >
+                ★
+              </button>
+
               <span
                 class="stock-orb"
                 [class.out]="!p.disponible || (p.stock !== null && p.stock !== undefined && p.stock <= 0)"
@@ -515,7 +526,28 @@
                     <strong>S/ {{ ped.montoExtras | number: '1.2-2' }}</strong>
                   </div>
                 }
+                @if (ped.descuentoCombo && ped.descuentoCombo > 0) {
+                  <div class="receipt-row" style="color: var(--green);">
+                    <span><strong>- Descuento Combo Universitario UTP</strong></span>
+                    <strong>-S/ {{ ped.descuentoCombo | number: '1.2-2' }}</strong>
+                  </div>
+                }
               </div>
+
+              @if (ped.incidenciaEstado) {
+                <div
+                  class="font-mono"
+                  [style.background]="ped.incidenciaEstado === 'RESUELTA' ? 'var(--green-soft)' : 'var(--amber-soft)'"
+                  [style.color]="ped.incidenciaEstado === 'RESUELTA' ? '#0F766E' : '#92400E'"
+                  style="font-size: 0.73rem; padding: 8px 12px; margin-bottom: 8px; border: 1px solid currentColor;"
+                >
+                  <strong>TICKET ITIL [{{ ped.incidenciaEstado }}] · {{ ped.incidenciaTipo }}:</strong>
+                  "{{ ped.incidenciaDetalle }}"
+                  @if (ped.incidenciaRespuesta) {
+                    <br /><strong>Solución Cafetería:</strong> "{{ ped.incidenciaRespuesta }}"
+                  }
+                </div>
+              }
 
               @if (ped.cremasYExtras) {
                 <p class="font-mono" style="font-size: 0.74rem; color: var(--ink); background: #F5F2EB; padding: 6px 10px; margin-bottom: 6px;">
@@ -565,6 +597,14 @@
                       <span>Volver a Pedir</span>
                     </button>
                   }
+
+                  <button
+                    type="button"
+                    class="action-pill"
+                    (click)="abrirModalIncidencia(ped)"
+                  >
+                    <span>{{ ped.incidenciaEstado ? 'Ver Incidencia' : 'Reportar Incidencia' }}</span>
+                  </button>
 
                   <button
                     type="button"
@@ -700,6 +740,14 @@
               </svg>
               <span>CRUD Usuarios</span>
             </button>
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="subVistaAdmin() === 'INCIDENCIAS'"
+              (click)="cambiarSubVistaAdmin('INCIDENCIAS')"
+            >
+              <span>Incidencias ITIL ({{ incidenciasAbiertasCount() }})</span>
+            </button>
           </div>
         </div>
 
@@ -785,14 +833,26 @@
             }
           </div>
 
-          <button type="button" class="action-pill green" (click)="exportarArqueoCsv()">
-            <svg class="icon-sm" viewBox="0 0 24 24">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <span>Exportar Arqueo (.CSV / Excel)</span>
-          </button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button
+              type="button"
+              class="action-pill"
+              [class.green]="cocinaAbierta()"
+              [class.red]="!cocinaAbierta()"
+              (click)="alternarEstadoCocinaAdmin()"
+            >
+              <span>{{ cocinaAbierta() ? 'Cocina ABIERTA (Pausar)' : 'Cocina EN PAUSA (Reanudar)' }}</span>
+            </button>
+
+            <button type="button" class="action-pill green" (click)="exportarArqueoCsv()">
+              <svg class="icon-sm" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Exportar Arqueo (.CSV / Excel)</span>
+            </button>
+          </div>
         </div>
 
         <!-- SUB-VISTA ADMIN 1: COMANDAS ACTIVAS EN GRILLA DE 2 COLUMNAS -->
@@ -1122,15 +1182,20 @@
         <!-- SUB-VISTA ADMIN 2: CRUD PRODUCTOS -->
         @if (subVistaAdmin() === 'PRODUCTOS') {
           <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
               <h3>Catálogo de Productos ({{ productos().length }})</h3>
-              <button type="button" class="btn-add-dome" (click)="abrirModalNuevoProducto()">
-                <svg class="icon-sm" viewBox="0 0 24 24">
-                  <path d="M5 12h14" />
-                  <path d="M12 5v14" />
-                </svg>
-                <span>Nuevo Producto</span>
-              </button>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="action-pill amber" (click)="reabastecerStockCriticoAdmin()">
+                  <span>Reabastecer Stock Crítico (a 20 u.)</span>
+                </button>
+                <button type="button" class="btn-add-dome" (click)="abrirModalNuevoProducto()">
+                  <svg class="icon-sm" viewBox="0 0 24 24">
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                  </svg>
+                  <span>Nuevo Producto</span>
+                </button>
+              </div>
             </div>
 
             <div class="ticket-order-card">
@@ -1219,6 +1284,72 @@
                       Eliminar
                     </button>
                   </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- SUB-VISTA ADMIN 4: MESA DE AYUDA / INCIDENCIAS ITIL -->
+        @if (subVistaAdmin() === 'INCIDENCIAS') {
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <h3>Mesa de Ayuda ITIL · Gestión de Incidencias y Reclamos ({{ pedidosConIncidencia().length }})</h3>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              @for (inc of pedidosConIncidencia(); track inc.id) {
+                <article class="ticket-order-card">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                    <div>
+                      <strong class="font-mono">TICKET ITIL #INC-{{ inc.id }} · BOLETO #{{ inc.codigo }}</strong>
+                      <span class="font-mono" style="font-size: 0.74rem; color: var(--muted); margin-left: 8px;">
+                        {{ inc.incidenciaFecha || inc.fechaRegistro }} · {{ inc.nombreCliente }} ({{ inc.codigoCliente }})
+                      </span>
+                    </div>
+                    <span
+                      class="ready-code"
+                      [style.background]="inc.incidenciaEstado === 'RESUELTA' ? 'var(--green)' : 'var(--amber)'"
+                    >
+                      {{ inc.incidenciaTipo }} · {{ inc.incidenciaEstado }}
+                    </span>
+                  </div>
+
+                  <p class="font-mono" style="font-size: 0.78rem; background: #F5F2EB; padding: 8px 12px; margin-bottom: 10px;">
+                    <strong>Reporte del Estudiante:</strong> "{{ inc.incidenciaDetalle }}"
+                  </p>
+
+                  @if (inc.incidenciaRespuesta) {
+                    <p class="font-mono" style="font-size: 0.76rem; background: var(--green-soft); color: #0F766E; padding: 8px 12px; margin-bottom: 8px;">
+                      <strong>Acción Correctiva Registrada:</strong> "{{ inc.incidenciaRespuesta }}"
+                    </p>
+                  }
+
+                  @if (inc.incidenciaEstado !== 'RESUELTA') {
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <input
+                        type="text"
+                        class="receipt-input"
+                        style="flex: 1; margin-bottom: 0;"
+                        placeholder="Escribe la solución aplicada (ej. Se entregó crema adicional / Se priorizó orden en barra)..."
+                        [(ngModel)]="respuestasIncidenciaAdmin[inc.id]"
+                      />
+                      <button
+                        type="button"
+                        class="action-pill green"
+                        (click)="resolverIncidenciaAdmin(inc)"
+                      >
+                        <span>Marcar Incidencia RESUELTA</span>
+                      </button>
+                    </div>
+                  }
+                </article>
+              } @empty {
+                <div class="empty-ticket-box">
+                  <h3>No hay tickets de incidencia ITIL registrados</h3>
+                  <p style="color: var(--muted); font-size: 0.85rem;">
+                    Cuando un estudiante reporte un incidente sobre su pedido, aparecerá aquí para su resolución y control de SLA.
+                  </p>
                 </div>
               }
             </div>
@@ -1385,6 +1516,17 @@
                   </button>
                 }
               </div>
+
+              @if (sugerenciaComboCarrito()) {
+                <div
+                  class="font-mono"
+                  [style.background]="descuentoComboCarrito() > 0 ? 'var(--green-soft)' : 'var(--amber-soft)'"
+                  [style.color]="descuentoComboCarrito() > 0 ? '#0F766E' : '#92400E'"
+                  style="font-size: 0.68rem; font-weight: 700; padding: 6px 8px; margin-top: 6px; border: 1px dashed currentColor;"
+                >
+                  {{ sugerenciaComboCarrito() }}
+                </div>
+              }
             </div>
           }
         </div>
@@ -1466,6 +1608,18 @@
             placeholder="Nota cocina: ej. poca sal, para llevar..."
             [(ngModel)]="mensajePedido"
           />
+
+          @if (descuentoComboCarrito() > 0) {
+            <div
+              style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; color: var(--green);"
+              class="font-mono"
+            >
+              <span style="font-size: 0.72rem; font-weight: 700;">DESCUENTO COMBO UTP:</span>
+              <strong style="font-size: 0.85rem;">
+                -S/ {{ descuentoComboCarrito() | number: '1.2-2' }}
+              </strong>
+            </div>
+          }
 
           <div
             style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
@@ -1676,6 +1830,12 @@
                 <strong>S/ {{ bol.montoExtras | number: '1.2-2' }}</strong>
               </div>
             }
+            @if (bol.descuentoCombo && bol.descuentoCombo > 0) {
+              <div style="display: flex; justify-content: space-between; color: var(--green);">
+                <span>Descuento Combo Universitario UTP</span>
+                <strong>-S/ {{ bol.descuentoCombo | number: '1.2-2' }}</strong>
+              </div>
+            }
           </div>
 
           <div style="line-height: 1.5; margin-bottom: 12px;">
@@ -1711,6 +1871,90 @@
             Cerrar
           </button>
         </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL CAMBIO DE CONTRASEÑA PROPIA ==================== -->
+  @if (mostrarModalPassword()) {
+    <div class="modal-overlay" (click)="mostrarModalPassword.set(false)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">SEGURIDAD DE CUENTA · UTP</span>
+        <h3 style="margin: 8px 0 6px;">Actualizar Contraseña</h3>
+        <form (ngSubmit)="guardarCambioPassword()">
+          <div class="field-group">
+            <label>Contraseña Actual</label>
+            <input
+              type="password"
+              name="passActual"
+              placeholder="Ingresa tu clave actual"
+              [(ngModel)]="passActual"
+              required
+            />
+          </div>
+          <div class="field-group">
+            <label>Nueva Contraseña (mín. 8 caracteres)</label>
+            <input
+              type="password"
+              name="passNueva"
+              placeholder="Mínimo 8 caracteres"
+              [(ngModel)]="passNueva"
+              required
+            />
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button type="submit" class="btn-emitir" [disabled]="cargando()">
+              ACTUALIZAR CONTRASEÑA
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="mostrarModalPassword.set(false)">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL MESA DE AYUDA / INCIDENCIA ITIL ==================== -->
+  @if (pedidoIncidenciaModal(); as pedInc) {
+    <div class="modal-overlay" (click)="pedidoIncidenciaModal.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">MESA DE AYUDA · GESTIÓN DE INCIDENCIAS ITIL</span>
+        <h3 style="margin: 8px 0 6px;">Reporte sobre Boleto #{{ pedInc.codigo }}</h3>
+        <form (ngSubmit)="enviarIncidenciaEstudiante()">
+          <div class="field-group">
+            <label>Categoría del Incidente</label>
+            <select name="incTipo" [(ngModel)]="incidenciaTipoForm">
+              <option value="DEMORA_EN_BARRA">Demora en preparación o entrega en barra</option>
+              <option value="PEDIDO_INCOMPLETO">Faltó crema, adicional o ítem del pedido</option>
+              <option value="PROBLEMA_PAGO">Consulta sobre validación de pago</option>
+              <option value="CALIDAD_PRODUCTO">Observación sobre temperatura o presentación</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Descripción del Incidente</label>
+            <input
+              type="text"
+              name="incDet"
+              placeholder="Describe brevemente lo ocurrido..."
+              [(ngModel)]="incidenciaDetalleForm"
+              required
+            />
+          </div>
+          @if (pedInc.incidenciaRespuesta) {
+            <div class="font-mono" style="background: var(--green-soft); color: #0F766E; padding: 10px; font-size: 0.75rem; margin-bottom: 10px;">
+              <strong>Respuesta de Cafetería:</strong> "{{ pedInc.incidenciaRespuesta }}"
+            </div>
+          }
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button type="submit" class="btn-emitir">
+              REGISTRAR TICKET ITIL
+            </button>
+            <button type="button" class="tab-arc-btn" (click)="pedidoIncidenciaModal.set(null)">
+              Cerrar
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   }

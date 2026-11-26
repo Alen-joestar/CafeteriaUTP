@@ -54,6 +54,17 @@ public class Pedido {
     @Column(length = 180)
     private String motivoCancelacion;
     private Integer calificacion;
+    private Double descuentoCombo;
+    @Column(length = 60)
+    private String incidenciaTipo;
+    @Column(length = 255)
+    private String incidenciaDetalle;
+    @Column(length = 30)
+    private String incidenciaEstado;
+    @Column(length = 255)
+    private String incidenciaRespuesta;
+    @Column(length = 40)
+    private String incidenciaFecha;
 
     public Pedido() {
     }
@@ -230,5 +241,53 @@ public class Pedido {
 
     public void setCalificacion(Integer calificacion) {
         this.calificacion = calificacion;
+    }
+
+    public Double getDescuentoCombo() {
+        return descuentoCombo;
+    }
+
+    public void setDescuentoCombo(Double descuentoCombo) {
+        this.descuentoCombo = descuentoCombo;
+    }
+
+    public String getIncidenciaTipo() {
+        return incidenciaTipo;
+    }
+
+    public void setIncidenciaTipo(String incidenciaTipo) {
+        this.incidenciaTipo = incidenciaTipo;
+    }
+
+    public String getIncidenciaDetalle() {
+        return incidenciaDetalle;
+    }
+
+    public void setIncidenciaDetalle(String incidenciaDetalle) {
+        this.incidenciaDetalle = incidenciaDetalle;
+    }
+
+    public String getIncidenciaEstado() {
+        return incidenciaEstado;
+    }
+
+    public void setIncidenciaEstado(String incidenciaEstado) {
+        this.incidenciaEstado = incidenciaEstado;
+    }
+
+    public String getIncidenciaRespuesta() {
+        return incidenciaRespuesta;
+    }
+
+    public void setIncidenciaRespuesta(String incidenciaRespuesta) {
+        this.incidenciaRespuesta = incidenciaRespuesta;
+    }
+
+    public String getIncidenciaFecha() {
+        return incidenciaFecha;
+    }
+
+    public void setIncidenciaFecha(String incidenciaFecha) {
+        this.incidenciaFecha = incidenciaFecha;
     }
 }

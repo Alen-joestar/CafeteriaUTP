@@ -5,7 +5,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     req.url.includes('/api/auth/login') ||
     req.url.includes('/api/auth/registro') ||
     (req.method === 'GET' && req.url.includes('/api/productos')) ||
-    (req.method === 'GET' && req.url.includes('/api/pedidos/monitor-barra'));
+    (req.method === 'GET' && req.url.includes('/api/pedidos/monitor-barra')) ||
+    (req.method === 'GET' && req.url.includes('/api/pedidos/estado-cocina'));
 
   if (!esRutaPublica) {
     const rawSession = localStorage.getItem('cafeteria_session');

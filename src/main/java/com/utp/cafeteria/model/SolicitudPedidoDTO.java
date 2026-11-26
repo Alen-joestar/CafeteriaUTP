@@ -12,6 +12,7 @@ public class SolicitudPedidoDTO {
     private String horarioRecojo;
     private String cremasYExtras;
     private Double montoExtras;
+    private Double descuentoCombo;
 
     public SolicitudPedidoDTO() {
     }
@@ -95,5 +96,13 @@ public class SolicitudPedidoDTO {
 
     public void setMontoExtras(Double montoExtras) {
         this.montoExtras = montoExtras;
+    }
+
+    public Double getDescuentoCombo() {
+        return descuentoCombo;
+    }
+
+    public void setDescuentoCombo(Double descuentoCombo) {
+        this.descuentoCombo = descuentoCombo;
     }
 }

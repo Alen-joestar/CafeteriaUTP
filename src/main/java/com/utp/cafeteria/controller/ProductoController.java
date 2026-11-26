@@ -56,4 +56,9 @@ public class ProductoController {
         }
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/reabastecer-criticos")
+    public ResponseEntity<List<Producto>> reabastecerCriticos() {
+        return ResponseEntity.ok(service.reabastecerStockCritico());
+    }
 }

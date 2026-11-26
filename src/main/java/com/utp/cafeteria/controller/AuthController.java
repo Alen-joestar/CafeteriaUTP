@@ -80,4 +80,13 @@ public class AuthController {
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/password")
+    public ResponseEntity<java.util.Map<String, String>> cambiarPassword(
+            @RequestBody java.util.Map<String, String> body, Authentication authentication) {
+        String actual = body.getOrDefault("passwordActual", "");
+        String nueva = body.getOrDefault("passwordNueva", "");
+        usuarioService.cambiarPasswordPropia(authentication.getName(), actual, nueva);
+        return ResponseEntity.ok(java.util.Map.of("mensaje", "Contraseña actualizada correctamente"));
+    }
 }
