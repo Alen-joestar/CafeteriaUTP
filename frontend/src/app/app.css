@@ -1228,27 +1228,33 @@
 
 .qr-mini-box {
   display: inline-grid;
-  grid-template-columns: repeat(7, 6px);
-  grid-template-rows: repeat(7, 6px);
-  gap: 1px;
-  padding: 5px;
-  background: #fff;
+  width: 60px;
+  height: 60px;
+  gap: 0;
+  padding: 4px;
+  background: #ffffff;
   border: 1.5px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.qr-mini-box.qr-md {
+  width: 116px;
+  height: 116px;
+  padding: 7px;
 }
 
 .qr-mini-box.qr-lg {
-  grid-template-columns: repeat(7, 14px);
-  grid-template-rows: repeat(7, 14px);
-  gap: 2px;
+  width: 192px;
+  height: 192px;
   padding: 10px;
 }
 
 .qr-cell {
-  background: transparent;
+  background: #ffffff;
 }
 
 .qr-cell.filled {
-  background: var(--ink);
+  background: #141413;
 }
 
 .arqueo-strip {

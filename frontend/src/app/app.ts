@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import * as QRCode from 'qrcode';
 import {
   ArqueoCajaResponse,
   ItemCarrito,
@@ -22,6 +23,7 @@ export class App implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private pollingTimer: ReturnType<typeof setInterval> | null = null;
   private estadosPreviosPedidos = new Map<number, string>();
+  private qrCache = new Map<string, { size: number; cells: boolean[] }>();
 
   // Navegación
   vistaActiva = signal<'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'>('CATALOGO');
@@ -584,28 +586,56 @@ export class App implements OnInit, OnDestroy {
     return idxActual > idxEtapa || estadoActual === 'ENTREGADO';
   }
 
-  // Generador determinístico de matriz 7x7 estilo QR SVG (Costo S/ 0)
-  generarMatrizQr(texto: string): boolean[] {
-    const s = texto || 'CAF-UTP';
-    let hash = 2166136261;
-    for (let i = 0; i < s.length; i++) {
-      hash ^= s.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
+  // Generador ISO/IEC 18004 Real Escaneable con Cámara de Celular (Reed-Solomon)
+  obtenerDatosQrReal(contenido: string): { size: number; cells: boolean[] } {
+    const clave = contenido || 'CAFETERIA-UTP';
+    const enCache = this.qrCache.get(clave);
+    if (enCache) {
+      return enCache;
     }
-    const celdas: boolean[] = [];
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        const esEsquina =
-          (r < 2 && c < 2) || (r < 2 && c > 4) || (r > 4 && c < 2);
-        if (esEsquina) {
-          celdas.push(true);
-        } else {
-          const bit = ((Math.abs(hash) >> ((r * 7 + c) % 24)) ^ (r * 3 + c)) & 1;
-          celdas.push(bit === 1);
-        }
+    try {
+      const qr = QRCode.create(clave, { errorCorrectionLevel: 'M' });
+      const size = qr.modules.size;
+      const data = qr.modules.data;
+      const cells: boolean[] = new Array(size * size);
+      for (let i = 0; i < data.length; i++) {
+        cells[i] = data[i] === 1;
       }
+      const resultado = { size, cells };
+      this.qrCache.set(clave, resultado);
+      return resultado;
+    } catch {
+      return { size: 7, cells: new Array(49).fill(true) };
     }
-    return celdas;
+  }
+
+  obtenerQrBoleto(ped: Pedido): { size: number; cells: boolean[] } {
+    const texto = [
+      'CAFETERIA UTP - SEDE PIURA',
+      `BOLETO: #${ped.codigo}`,
+      `PIN BARRA: ${ped.pinEntrega || '2026'}`,
+      `ESTUDIANTE: ${ped.nombreCliente || ped.codigoCliente || 'UTP'}`,
+      `RECOJO: ${ped.horarioRecojo || 'INMEDIATO'}`,
+      `TOTAL: S/ ${(ped.total || 0).toFixed(2)}`,
+      `ESTADO: ${ped.estado}`
+    ].join('\n');
+    return this.obtenerDatosQrReal(texto);
+  }
+
+  obtenerQrPasarela(): { size: number; cells: boolean[] } {
+    const texto = [
+      `UTP PAY - ORDEN DE PAGO ${this.metodoPago}`,
+      'COMERCIO: CAFETERIA UTP S.A.C.',
+      'RUC: 20462509236',
+      `IMPORTE: S/ ${this.totalMontoCarrito().toFixed(2)}`,
+      `HORARIO: ${this.horarioRecojoFinal()}`
+    ].join('\n');
+    return this.obtenerDatosQrReal(texto);
+  }
+
+  obtenerQrBoletaSunat(bol: Pedido): { size: number; cells: boolean[] } {
+    const texto = `20462509236|03|B001|000${bol.id}|IGV:${this.calcularIgv(bol.total).toFixed(2)}|TOTAL:${bol.total.toFixed(2)}|${bol.fechaRegistro}|${bol.codigoCliente || 'U2303001'}|${bol.codigo}`;
+    return this.obtenerDatosQrReal(texto);
   }
 
   cambiarVista(vista: 'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'): void {

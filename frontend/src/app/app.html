@@ -413,17 +413,21 @@
                 style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;"
               >
                 <div style="display: flex; align-items: center; gap: 14px;">
-                  <!-- Mini Código QR Vectorial Único del Boleto -->
-                  <div
-                    class="qr-mini-box"
-                    style="cursor: pointer;"
-                    title="Clic para ampliar QR de entrega en barra"
-                    (click)="pedidoQrActiva.set(ped)"
-                  >
-                    @for (bit of generarMatrizQr(ped.codigo + (ped.pinEntrega || '')); track $index) {
-                      <span class="qr-cell" [class.filled]="bit"></span>
-                    }
-                  </div>
+                  <!-- Mini Código QR Real Escaneable del Boleto -->
+                  @if (obtenerQrBoleto(ped); as qrBol) {
+                    <div
+                      class="qr-mini-box"
+                      style="cursor: pointer;"
+                      title="Clic para ampliar y escanear QR con tu celular"
+                      [style.grid-template-columns]="'repeat(' + qrBol.size + ', 1fr)'"
+                      [style.grid-template-rows]="'repeat(' + qrBol.size + ', 1fr)'"
+                      (click)="pedidoQrActiva.set(ped)"
+                    >
+                      @for (bit of qrBol.cells; track $index) {
+                        <span class="qr-cell" [class.filled]="bit"></span>
+                      }
+                    </div>
+                  }
                   <div>
                     <span class="font-mono" style="font-size: 1.1rem; font-weight: 700;">
                       BOLETO #{{ ped.codigo }}
@@ -1673,11 +1677,18 @@
             <div class="font-mono" style="font-size: 0.74rem; font-weight: 700; margin-bottom: 8px;">
               QR DINÁMICO {{ metodoPago }} · CAFETERÍA UTP S.A.C.
             </div>
-            <div class="qr-mini-box qr-lg" style="margin: 0 auto 10px;">
-              @for (bit of generarMatrizQr(metodoPago + totalMontoCarrito()); track $index) {
-                <span class="qr-cell" [class.filled]="bit"></span>
-              }
-            </div>
+            @if (obtenerQrPasarela(); as qrPay) {
+              <div
+                class="qr-mini-box qr-lg"
+                style="margin: 0 auto 10px;"
+                [style.grid-template-columns]="'repeat(' + qrPay.size + ', 1fr)'"
+                [style.grid-template-rows]="'repeat(' + qrPay.size + ', 1fr)'"
+              >
+                @for (bit of qrPay.cells; track $index) {
+                  <span class="qr-cell" [class.filled]="bit"></span>
+                }
+              </div>
+            }
             <div style="margin-top: 8px;">
               <button
                 type="button"
@@ -1762,11 +1773,18 @@
           Muestra este QR o dicta tu PIN de 4 dígitos en la barra de entrega
         </p>
 
-        <div class="qr-mini-box qr-lg" style="margin: 0 auto 14px;">
-          @for (bit of generarMatrizQr(pedQr.codigo + (pedQr.pinEntrega || '')); track $index) {
-            <span class="qr-cell" [class.filled]="bit"></span>
-          }
-        </div>
+        @if (obtenerQrBoleto(pedQr); as qrModal) {
+          <div
+            class="qr-mini-box qr-lg"
+            style="margin: 0 auto 14px;"
+            [style.grid-template-columns]="'repeat(' + qrModal.size + ', 1fr)'"
+            [style.grid-template-rows]="'repeat(' + qrModal.size + ', 1fr)'"
+          >
+            @for (bit of qrModal.cells; track $index) {
+              <span class="qr-cell" [class.filled]="bit"></span>
+            }
+          </div>
+        }
 
         <div
           class="font-mono"
@@ -1854,11 +1872,18 @@
           </div>
 
           <div style="text-align: center;">
-            <div class="qr-mini-box" style="margin: 0 auto 6px;">
-              @for (bit of generarMatrizQr('SUNAT-B001-' + bol.codigo); track $index) {
-                <span class="qr-cell" [class.filled]="bit"></span>
-              }
-            </div>
+            @if (obtenerQrBoletaSunat(bol); as qrSunat) {
+              <div
+                class="qr-mini-box qr-md"
+                style="margin: 0 auto 6px;"
+                [style.grid-template-columns]="'repeat(' + qrSunat.size + ', 1fr)'"
+                [style.grid-template-rows]="'repeat(' + qrSunat.size + ', 1fr)'"
+              >
+                @for (bit of qrSunat.cells; track $index) {
+                  <span class="qr-cell" [class.filled]="bit"></span>
+                }
+              </div>
+            }
             <small>Representación impresa de la Boleta de Venta Electrónica</small>
           </div>
         </div>
