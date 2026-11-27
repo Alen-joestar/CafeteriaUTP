@@ -87,8 +87,9 @@ public class PedidoService {
         double descuentoPuntos = 0.0;
         if (solicitud.getDescuentoPuntos() != null && solicitud.getDescuentoPuntos() > 0) {
             int puntosDisp = calcularPuntosDisponiblesCliente(cliente.getId());
-            if (puntosDisp < 20) {
-                throw new IllegalArgumentException("Necesitas al menos 20 Puntos UTP acumulados para canjear el descuento");
+            if (puntosDisp < 100) {
+                throw new IllegalArgumentException(
+                        "Necesitas al menos 100 Puntos UTP acumulados para canjear el descuento de S/ 2.00");
             }
             descuentoPuntos = 2.0;
         }
@@ -461,7 +462,7 @@ public class PedidoService {
             if (!"CANCELADO".equalsIgnoreCase(p.getEstado())
                     && p.getDescuentoPuntos() != null
                     && p.getDescuentoPuntos() > 0) {
-                gastados += 20;
+                gastados += 100;
             }
         }
         return Math.max(0, ganados - gastados);

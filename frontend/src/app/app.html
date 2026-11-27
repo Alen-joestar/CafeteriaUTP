@@ -549,7 +549,7 @@
                 }
                 @if (ped.descuentoPuntos && ped.descuentoPuntos > 0) {
                   <div class="receipt-row" style="color: var(--green);">
-                    <span><strong>- Canje 20 Puntos UTP</strong></span>
+                    <span><strong>- Canje 100 Puntos UTP</strong></span>
                     <strong>-S/ {{ ped.descuentoPuntos | number: '1.2-2' }}</strong>
                   </div>
                 }
@@ -1233,31 +1233,33 @@
 
             <div class="ticket-order-card">
               @for (pr of productos(); track pr.id) {
-                <div class="receipt-row">
-                  <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="prod-crud-row">
+                  <div class="prod-crud-left">
                     <img
                       [src]="pr.imagenUrl || imagenPorDefecto(pr.categoria)"
                       [alt]="pr.nombre"
-                      style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ink);"
+                      style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ink); flex-shrink: 0;"
                     />
-                    <div>
-                      <strong>#{{ pr.id }} · {{ pr.nombre }}</strong>
-                      <small style="color: var(--muted); margin-left: 8px;">
-                        [{{ pr.categoria }}] · Stock: {{ pr.stock ?? '∞' }}
+                    <div style="min-width: 0;">
+                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <strong>#{{ pr.id }} · {{ pr.nombre }}</strong>
+                        @if (pr.stock !== null && pr.stock !== undefined && pr.stock === 0) {
+                          <span class="ready-code" style="background: var(--utp-red); font-size: 0.62rem; padding: 1px 6px;">
+                            AGOTADO
+                          </span>
+                        } @else if (pr.stock !== null && pr.stock !== undefined && pr.stock <= 5) {
+                          <span class="ready-code" style="background: var(--amber); font-size: 0.62rem; padding: 1px 6px;">
+                            STOCK CRÍTICO
+                          </span>
+                        }
+                      </div>
+                      <small style="color: var(--muted); display: block;">
+                        [{{ pr.categoria }}] · Stock: {{ pr.stock ?? '∞' }} u.
                       </small>
-                      @if (pr.stock !== null && pr.stock !== undefined && pr.stock === 0) {
-                        <span class="ready-code" style="background: var(--utp-red); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
-                          AGOTADO
-                        </span>
-                      } @else if (pr.stock !== null && pr.stock !== undefined && pr.stock <= 5) {
-                        <span class="ready-code" style="background: var(--amber); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
-                          STOCK CRÍTICO
-                        </span>
-                      }
                     </div>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <strong>S/ {{ pr.precio | number: '1.2-2' }}</strong>
+                  <div class="prod-crud-actions">
+                    <strong style="margin-right: 4px;">S/ {{ pr.precio | number: '1.2-2' }}</strong>
                     <button type="button" class="action-pill" (click)="productoKardexModal.set(pr)">
                       <span>Kardex</span>
                     </button>
@@ -1569,18 +1571,18 @@
                   class="font-mono"
                   style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-warm); padding: 6px 8px; margin-top: 6px; border: 1px solid var(--ink); font-size: 0.68rem;"
                 >
-                  <span><strong>★ PUNTOS UTP:</strong> {{ puntosUtpDisponibles() }} disp.</span>
-                  @if (puntosUtpDisponibles() >= 20) {
+                  <span><strong>★ PUNTOS UTP:</strong> {{ puntosUtpDisponibles() }} / 100 pts</span>
+                  @if (puntosUtpDisponibles() >= 100) {
                     <button
                       type="button"
                       class="chip-mini"
                       [class.active]="canjearPuntosUtp()"
                       (click)="canjearPuntosUtp.set(!canjearPuntosUtp())"
                     >
-                      {{ canjearPuntosUtp() ? 'Canje Activo (-S/ 2.00)' : 'Canjear 20 pts (-S/ 2.00)' }}
+                      {{ canjearPuntosUtp() ? 'Canje Activo (-S/ 2.00)' : 'Canjear 100 pts (-S/ 2.00)' }}
                     </button>
                   } @else {
-                    <span style="color: var(--muted);">Canje a los 20 pts</span>
+                    <span style="color: var(--muted);">Meta: 100 pts (-S/ 2.00)</span>
                   }
                 </div>
               }
@@ -1683,7 +1685,7 @@
               style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 2px; color: var(--green);"
               class="font-mono"
             >
-              <span style="font-size: 0.72rem; font-weight: 700;">CANJE 20 PUNTOS UTP:</span>
+              <span style="font-size: 0.72rem; font-weight: 700;">CANJE 100 PUNTOS UTP:</span>
               <strong style="font-size: 0.85rem;">
                 -S/ {{ descuentoPuntosCarrito() | number: '1.2-2' }}
               </strong>
@@ -1968,15 +1970,20 @@
           </div>
 
           <div class="font-mono" style="font-size: 0.72rem; margin-bottom: 12px;">
-            <strong>ÚLTIMOS MOVIMIENTOS DE BOLETOS:</strong>
-            @for (m of kdx.movimientos; track $index) {
-              <div class="receipt-row">
-                <span>#{{ m.codigo }} · {{ m.cliente }} ({{ m.cantidad }}u)</span>
-                <strong>{{ m.estado }}</strong>
-              </div>
-            } @empty {
-              <div style="color: var(--muted); padding: 8px 0;">Sin movimientos registrados en las órdenes actuales.</div>
-            }
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>ÚLTIMOS 5 MOVIMIENTOS RECIENTES:</strong>
+              <span style="color: var(--muted);">Total registros: {{ kdx.totalMovimientos }}</span>
+            </div>
+            <div class="kardex-scroll-list">
+              @for (m of kdx.movimientos; track $index) {
+                <div class="receipt-row">
+                  <span>#{{ m.codigo }} · {{ m.cliente }} ({{ m.cantidad }}u)</span>
+                  <strong>{{ m.estado }}</strong>
+                </div>
+              } @empty {
+                <div style="color: var(--muted); padding: 8px 0;">Sin movimientos registrados en las órdenes actuales.</div>
+              }
+            </div>
           </div>
         }
 

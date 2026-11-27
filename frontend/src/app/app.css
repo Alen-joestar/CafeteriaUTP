@@ -638,6 +638,49 @@
   color: var(--ink);
 }
 
+.prod-crud-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dotted var(--line);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.76rem;
+  flex-wrap: nowrap;
+}
+
+.prod-crud-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.prod-crud-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.prod-crud-actions .action-pill {
+  padding: 5px 10px;
+  font-size: 0.68rem;
+}
+
+.kardex-scroll-list {
+  max-height: 145px;
+  overflow-y: auto;
+  border: 1px dashed var(--line);
+  padding: 6px 10px;
+  background: var(--bg-warm);
+  margin-top: 6px;
+}
+
 .cat-mini-label {
   font-family: 'Space Mono', monospace;
   font-size: 0.68rem;

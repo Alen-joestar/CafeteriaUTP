@@ -224,7 +224,7 @@ export class App implements OnInit, OnDestroy {
         ganados += Math.floor(p.total);
       }
       if (p.estado !== 'CANCELADO' && p.descuentoPuntos && p.descuentoPuntos > 0) {
-        gastados += 20;
+        gastados += 100;
       }
     }
     return Math.max(0, ganados - gastados);
@@ -232,7 +232,7 @@ export class App implements OnInit, OnDestroy {
 
   descuentoPuntosCarrito = computed(() => {
     if (this.carrito().length === 0) return 0;
-    return this.canjearPuntosUtp() && this.puntosUtpDisponibles() >= 20 ? 2.0 : 0.0;
+    return this.canjearPuntosUtp() && this.puntosUtpDisponibles() >= 100 ? 2.0 : 0.0;
   });
 
   sugerenciaComboCarrito = computed(() => {
@@ -310,7 +310,8 @@ export class App implements OnInit, OnDestroy {
       entregadas,
       recaudado,
       devueltasCanceladas,
-      movimientos: movimientos.slice(0, 8)
+      totalMovimientos: movimientos.length,
+      movimientos: movimientos.slice(0, 5)
     };
   });
 
@@ -697,11 +698,22 @@ export class App implements OnInit, OnDestroy {
   }
 
   obtenerQrBoleto(ped: Pedido): { size: number; cells: boolean[] } {
-    const origen = typeof window !== 'undefined' && window.location?.origin
-      ? window.location.origin
-      : 'http://localhost:4200';
-    const urlVerificacion = `${origen}/?verificar=${encodeURIComponent(ped.codigo)}&pin=${encodeURIComponent(ped.pinEntrega || '2026')}`;
-    return this.obtenerDatosQrReal(urlVerificacion);
+    const itemsResumen = (ped.items || [])
+      .map((i) => `${i.cantidad}x ${i.nombreProducto}`)
+      .join(', ');
+    const fichaOffline = [
+      '=== CAFETERIA UTP · SEDE PIURA ===',
+      '[OK] BOLETO DIGITAL VERIFICADO',
+      `ORDEN : #${ped.codigo}`,
+      `PIN   : ${ped.pinEntrega || '2026'}`,
+      `ALUMNO: ${ped.nombreCliente || ped.codigoCliente || 'Estudiante UTP'}`,
+      `RECOJO: ${ped.horarioRecojo || 'INMEDIATO'}`,
+      `PLATOS: ${itemsResumen || 'Orden UTP'}`,
+      `PAGO  : ${ped.metodoPago} (${ped.estadoPago})`,
+      `TOTAL : S/ ${(ped.total || 0).toFixed(2)}`,
+      `ESTADO: ${ped.estado}`
+    ].join('\n');
+    return this.obtenerDatosQrReal(fichaOffline);
   }
 
   abrirVistaVerificacionQr(ped: Pedido): void {
