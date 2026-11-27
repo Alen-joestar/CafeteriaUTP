@@ -1488,14 +1488,17 @@
               style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 10px; padding: 6px 10px; margin-top: 8px; text-align: left;"
             >
               <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.68rem;">
-                <span><strong>★ PUNTOS UTP:</strong> {{ puntosUtpDisponibles() }} / 100</span>
-                <span style="color: var(--muted);">100 pts = -S/ 2.00</span>
+                <strong>★ PUNTOS UTP:</strong>
+                <strong style="color: var(--utp-red);">{{ puntosUtpDisponibles() }} / 100 pts</strong>
               </div>
               <div style="height: 5px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin-top: 4px;">
                 <div
                   style="height: 100%; background: var(--utp-red); transition: width 0.25s ease;"
                   [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
                 ></div>
+              </div>
+              <div style="font-size: 0.64rem; color: var(--muted); margin-top: 4px; text-align: right;">
+                100 pts = -S/ 2.00
               </div>
             </div>
           }
@@ -2112,7 +2115,7 @@
         <div style="margin: 8px 0 12px; padding-bottom: 10px; border-bottom: 1px dashed var(--line);">
           <h3 style="margin-bottom: 2px;">{{ sesion()?.nombreCompleto || sesion()?.codigo }}</h3>
           <small class="font-mono" style="color: var(--muted);">
-            Código: <strong>{{ sesion()?.codigo }}</strong> · Correo: {{ sesion()?.correo || 'Institucional' }} · Rol: <strong>{{ sesion()?.rol }}</strong>
+            Código: <strong>{{ sesion()?.codigo }}</strong> · Correo: {{ sesion()?.correo || 'Institucional' }}
           </small>
         </div>
 
@@ -2354,7 +2357,7 @@
               Acceso Universitario UTP
             </h3>
             <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
-              Ingresa con tu código UTP o cuenta administrativa de Cafetería.
+              Ingresa con tu código UTP o correo institucional.
             </p>
 
             <div class="field-group">
