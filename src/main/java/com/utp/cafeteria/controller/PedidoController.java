@@ -62,6 +62,17 @@ public class PedidoController {
         return ResponseEntity.ok(service.obtenerEstadoCocina());
     }
 
+    @GetMapping("/verificar-qr")
+    public ResponseEntity<Pedido> verificarQrPublico(
+            @RequestParam String codigo,
+            @RequestParam(required = false) String pin) {
+        Pedido verificado = service.verificarBoletoPublicoQr(codigo, pin);
+        if (verificado == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(verificado);
+    }
+
     @PatchMapping("/estado-cocina")
     public ResponseEntity<Map<String, Object>> cambiarEstadoCocina(@RequestBody Map<String, Object> body) {
         boolean abierta = Boolean.TRUE.equals(body.get("cocinaAbierta"));

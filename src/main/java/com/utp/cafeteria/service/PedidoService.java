@@ -84,7 +84,17 @@ public class PedidoService {
                 ? solicitud.getMontoExtras()
                 : 0.0;
         double descuentoCombo = calcularDescuentoCombo(detalles);
-        double total = Math.max(0.0, detalles.stream().mapToDouble(DetallePedido::getSubtotal).sum() + montoExtras - descuentoCombo);
+        double descuentoPuntos = 0.0;
+        if (solicitud.getDescuentoPuntos() != null && solicitud.getDescuentoPuntos() > 0) {
+            int puntosDisp = calcularPuntosDisponiblesCliente(cliente.getId());
+            if (puntosDisp < 100) {
+                throw new IllegalArgumentException(
+                        "Necesitas al menos 100 Puntos UTP acumulados para canjear el descuento de S/ 2.00");
+            }
+            descuentoPuntos = 2.0;
+        }
+        double total = Math.max(0.0,
+                detalles.stream().mapToDouble(DetallePedido::getSubtotal).sum() + montoExtras - descuentoCombo - descuentoPuntos);
 
         Pedido pedido = new Pedido();
         pedido.setCodigo("CAF-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT));
@@ -105,6 +115,7 @@ public class PedidoService {
         pedido.setCremasYExtras(solicitud.getCremasYExtras());
         pedido.setMontoExtras(montoExtras);
         pedido.setDescuentoCombo(descuentoCombo);
+        pedido.setDescuentoPuntos(descuentoPuntos);
         return pedidos.save(pedido);
     }
 
@@ -436,6 +447,36 @@ public class PedidoService {
         pedido.setIncidenciaRespuesta(respuesta.trim());
         pedido.setIncidenciaEstado("RESUELTA");
         return pedidos.save(pedido);
+    }
+
+    @Transactional(readOnly = true)
+    public int calcularPuntosDisponiblesCliente(Long clienteId) {
+        if (clienteId == null) return 0;
+        List<Pedido> delCliente = pedidos.buscar(null, clienteId);
+        int ganados = 0;
+        int gastados = 0;
+        for (Pedido p : delCliente) {
+            if ("ENTREGADO".equalsIgnoreCase(p.getEstado()) && p.getTotal() != null) {
+                ganados += (int) Math.floor(p.getTotal());
+            }
+            if (!"CANCELADO".equalsIgnoreCase(p.getEstado())
+                    && p.getDescuentoPuntos() != null
+                    && p.getDescuentoPuntos() > 0) {
+                gastados += 100;
+            }
+        }
+        return Math.max(0, ganados - gastados);
+    }
+
+    @Transactional(readOnly = true)
+    public Pedido verificarBoletoPublicoQr(String codigo, String pin) {
+        if (codigo == null || codigo.isBlank()) return null;
+        String limpio = codigo.trim().replace("#", "").toUpperCase(Locale.ROOT);
+        return pedidos.buscar(null, null).stream()
+                .filter(p -> p.getCodigo() != null && p.getCodigo().toUpperCase(Locale.ROOT).equals(limpio))
+                .filter(p -> pin == null || pin.isBlank() || p.getPinEntrega() == null || p.getPinEntrega().equalsIgnoreCase(pin.trim()))
+                .findFirst()
+                .orElse(null);
     }
 
     public Pedido validarEntregaPorPinOCodigo(String codigoOPin) {

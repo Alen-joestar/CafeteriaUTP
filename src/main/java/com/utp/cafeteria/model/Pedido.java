@@ -55,6 +55,7 @@ public class Pedido {
     private String motivoCancelacion;
     private Integer calificacion;
     private Double descuentoCombo;
+    private Double descuentoPuntos;
     @Column(length = 60)
     private String incidenciaTipo;
     @Column(length = 255)
@@ -249,6 +250,14 @@ public class Pedido {
 
     public void setDescuentoCombo(Double descuentoCombo) {
         this.descuentoCombo = descuentoCombo;
+    }
+
+    public Double getDescuentoPuntos() {
+        return descuentoPuntos;
+    }
+
+    public void setDescuentoPuntos(Double descuentoPuntos) {
+        this.descuentoPuntos = descuentoPuntos;
     }
 
     public String getIncidenciaTipo() {

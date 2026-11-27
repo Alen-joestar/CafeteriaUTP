@@ -117,20 +117,25 @@
           <strong>{{ sesion()?.nombreCompleto || sesion()?.codigo || 'Invitado UTP' }}</strong>
           <div class="user-pass-sub">
             <small>{{ sesion()?.codigo || 'SIN SESIÓN' }}</small>
-            <span class="role-chip-fixed">{{ sesion()?.rol || 'VISITANTE' }}</span>
           </div>
         </div>
       </div>
 
       @if (estaAutenticado()) {
         <div class="pass-actions">
-          <button type="button" class="btn-mini" (click)="abrirModalLogin()">
-            <span>Cuenta</span>
-          </button>
           <button type="button" class="btn-mini" (click)="abrirModalCambioPassword()">
-            <span>Clave</span>
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span>Mi Perfil</span>
           </button>
           <button type="button" class="btn-mini" (click)="cerrarSesion()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
             <span>Salir</span>
           </button>
         </div>
@@ -316,7 +321,13 @@
 
               <span class="cat-mini-label">{{ p.categoria }}</span>
               <h3>{{ p.nombre }}</h3>
-              <p>{{ p.descripcion || 'Preparado al instante en cafetería.' }}</p>
+              <p style="margin-bottom: 6px;">{{ p.descripcion || 'Preparado al instante en cafetería.' }}</p>
+              <div
+                class="font-mono"
+                style="font-size: 0.65rem; color: var(--muted); background: var(--bg-warm); padding: 3px 8px; border-radius: 99px; margin: 0 auto 12px; width: fit-content;"
+              >
+                {{ obtenerEtiquetaNutricional(p) }}
+              </div>
 
               <div class="dome-footer">
                 <span class="price-mono">S/ {{ p.precio | number: '1.2-2' }}</span>
@@ -413,17 +424,21 @@
                 style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;"
               >
                 <div style="display: flex; align-items: center; gap: 14px;">
-                  <!-- Mini Código QR Vectorial Único del Boleto -->
-                  <div
-                    class="qr-mini-box"
-                    style="cursor: pointer;"
-                    title="Clic para ampliar QR de entrega en barra"
-                    (click)="pedidoQrActiva.set(ped)"
-                  >
-                    @for (bit of generarMatrizQr(ped.codigo + (ped.pinEntrega || '')); track $index) {
-                      <span class="qr-cell" [class.filled]="bit"></span>
-                    }
-                  </div>
+                  <!-- Mini Código QR Real Escaneable del Boleto -->
+                  @if (obtenerQrBoleto(ped); as qrBol) {
+                    <div
+                      class="qr-mini-box"
+                      style="cursor: pointer;"
+                      title="Clic para ampliar y escanear QR con tu celular"
+                      [style.grid-template-columns]="'repeat(' + qrBol.size + ', 1fr)'"
+                      [style.grid-template-rows]="'repeat(' + qrBol.size + ', 1fr)'"
+                      (click)="pedidoQrActiva.set(ped)"
+                    >
+                      @for (bit of qrBol.cells; track $index) {
+                        <span class="qr-cell" [class.filled]="bit"></span>
+                      }
+                    </div>
+                  }
                   <div>
                     <span class="font-mono" style="font-size: 1.1rem; font-weight: 700;">
                       BOLETO #{{ ped.codigo }}
@@ -530,6 +545,12 @@
                   <div class="receipt-row" style="color: var(--green);">
                     <span><strong>- Descuento Combo Universitario UTP</strong></span>
                     <strong>-S/ {{ ped.descuentoCombo | number: '1.2-2' }}</strong>
+                  </div>
+                }
+                @if (ped.descuentoPuntos && ped.descuentoPuntos > 0) {
+                  <div class="receipt-row" style="color: var(--green);">
+                    <span><strong>- Canje 100 Puntos UTP</strong></span>
+                    <strong>-S/ {{ ped.descuentoPuntos | number: '1.2-2' }}</strong>
                   </div>
                 }
               </div>
@@ -1002,6 +1023,18 @@
                             · Ref: {{ ped.referenciaPago }}
                           }
                         </small>
+                        @if (ped.estado === 'NUEVO' || ped.estado === 'EN_PREPARACION') {
+                          @if (calcularSlaComanda(ped); as sla) {
+                            <div
+                              class="font-mono"
+                              [style.background]="sla.fondo"
+                              [style.color]="sla.color"
+                              style="font-size: 0.66rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin-top: 4px; width: fit-content; border: 1px solid currentColor;"
+                            >
+                              {{ sla.etiqueta }}
+                            </div>
+                          }
+                        }
                       </div>
                       <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                         <span
@@ -1200,31 +1233,36 @@
 
             <div class="ticket-order-card">
               @for (pr of productos(); track pr.id) {
-                <div class="receipt-row">
-                  <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="prod-crud-row">
+                  <div class="prod-crud-left">
                     <img
                       [src]="pr.imagenUrl || imagenPorDefecto(pr.categoria)"
                       [alt]="pr.nombre"
-                      style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ink);"
+                      style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ink); flex-shrink: 0;"
                     />
-                    <div>
-                      <strong>#{{ pr.id }} · {{ pr.nombre }}</strong>
-                      <small style="color: var(--muted); margin-left: 8px;">
-                        [{{ pr.categoria }}] · Stock: {{ pr.stock ?? '∞' }}
+                    <div style="min-width: 0;">
+                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <strong>#{{ pr.id }} · {{ pr.nombre }}</strong>
+                        @if (pr.stock !== null && pr.stock !== undefined && pr.stock === 0) {
+                          <span class="ready-code" style="background: var(--utp-red); font-size: 0.62rem; padding: 1px 6px;">
+                            AGOTADO
+                          </span>
+                        } @else if (pr.stock !== null && pr.stock !== undefined && pr.stock <= 5) {
+                          <span class="ready-code" style="background: var(--amber); font-size: 0.62rem; padding: 1px 6px;">
+                            STOCK CRÍTICO
+                          </span>
+                        }
+                      </div>
+                      <small style="color: var(--muted); display: block;">
+                        [{{ pr.categoria }}] · Stock: {{ pr.stock ?? '∞' }} u.
                       </small>
-                      @if (pr.stock !== null && pr.stock !== undefined && pr.stock === 0) {
-                        <span class="ready-code" style="background: var(--utp-red); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
-                          AGOTADO
-                        </span>
-                      } @else if (pr.stock !== null && pr.stock !== undefined && pr.stock <= 5) {
-                        <span class="ready-code" style="background: var(--amber); font-size: 0.64rem; padding: 2px 7px; margin-left: 6px;">
-                          STOCK CRÍTICO
-                        </span>
-                      }
                     </div>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <strong>S/ {{ pr.precio | number: '1.2-2' }}</strong>
+                  <div class="prod-crud-actions">
+                    <strong style="margin-right: 4px;">S/ {{ pr.precio | number: '1.2-2' }}</strong>
+                    <button type="button" class="action-pill" (click)="productoKardexModal.set(pr)">
+                      <span>Kardex</span>
+                    </button>
                     <button type="button" class="action-pill" (click)="sumarStockRapido(pr, 5)">
                       <svg class="icon-sm" viewBox="0 0 24 24">
                         <path d="M5 12h14" />
@@ -1442,6 +1480,27 @@
             <span>TICKET DE ORDEN</span>
           </h3>
           <small>SEDE PIURA · CAJA RÁPIDA</small>
+
+          @if (estaAutenticado() && !esCafeteria()) {
+            <div
+              class="font-mono"
+              style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 10px; padding: 6px 10px; margin-top: 8px; text-align: left;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.68rem;">
+                <strong>★ PUNTOS UTP:</strong>
+                <strong style="color: var(--utp-red);">{{ puntosUtpDisponibles() }} / 100 pts</strong>
+              </div>
+              <div style="height: 5px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin-top: 4px;">
+                <div
+                  style="height: 100%; background: var(--utp-red); transition: width 0.25s ease;"
+                  [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
+                ></div>
+              </div>
+              <div style="font-size: 0.64rem; color: var(--muted); margin-top: 4px; text-align: right;">
+                100 pts = -S/ 2.00
+              </div>
+            </div>
+          }
         </div>
 
         <div class="receipt-items">
@@ -1525,6 +1584,20 @@
                   style="font-size: 0.68rem; font-weight: 700; padding: 6px 8px; margin-top: 6px; border: 1px dashed currentColor;"
                 >
                   {{ sugerenciaComboCarrito() }}
+                </div>
+              }
+
+              @if (estaAutenticado() && !esCafeteria() && puntosUtpDisponibles() >= 100) {
+                <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span class="font-mono" style="font-size: 0.68rem; font-weight: 700;">RECOMPENSA DISPONIBLE:</span>
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="canjearPuntosUtp()"
+                    (click)="canjearPuntosUtp.set(!canjearPuntosUtp())"
+                  >
+                    {{ canjearPuntosUtp() ? '✓ Canje 100 pts (-S/ 2.00)' : 'Usar 100 pts (-S/ 2.00)' }}
+                  </button>
                 </div>
               }
             </div>
@@ -1621,6 +1694,18 @@
             </div>
           }
 
+          @if (descuentoPuntosCarrito() > 0) {
+            <div
+              style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 2px; color: var(--green);"
+              class="font-mono"
+            >
+              <span style="font-size: 0.72rem; font-weight: 700;">CANJE 100 PUNTOS UTP:</span>
+              <strong style="font-size: 0.85rem;">
+                -S/ {{ descuentoPuntosCarrito() | number: '1.2-2' }}
+              </strong>
+            </div>
+          }
+
           <div
             style="display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0;"
             class="font-mono"
@@ -1673,11 +1758,18 @@
             <div class="font-mono" style="font-size: 0.74rem; font-weight: 700; margin-bottom: 8px;">
               QR DINÁMICO {{ metodoPago }} · CAFETERÍA UTP S.A.C.
             </div>
-            <div class="qr-mini-box qr-lg" style="margin: 0 auto 10px;">
-              @for (bit of generarMatrizQr(metodoPago + totalMontoCarrito()); track $index) {
-                <span class="qr-cell" [class.filled]="bit"></span>
-              }
-            </div>
+            @if (obtenerQrPasarela(); as qrPay) {
+              <div
+                class="qr-mini-box qr-lg"
+                style="margin: 0 auto 10px;"
+                [style.grid-template-columns]="'repeat(' + qrPay.size + ', 1fr)'"
+                [style.grid-template-rows]="'repeat(' + qrPay.size + ', 1fr)'"
+              >
+                @for (bit of qrPay.cells; track $index) {
+                  <span class="qr-cell" [class.filled]="bit"></span>
+                }
+              </div>
+            }
             <div style="margin-top: 8px;">
               <button
                 type="button"
@@ -1762,11 +1854,18 @@
           Muestra este QR o dicta tu PIN de 4 dígitos en la barra de entrega
         </p>
 
-        <div class="qr-mini-box qr-lg" style="margin: 0 auto 14px;">
-          @for (bit of generarMatrizQr(pedQr.codigo + (pedQr.pinEntrega || '')); track $index) {
-            <span class="qr-cell" [class.filled]="bit"></span>
-          }
-        </div>
+        @if (obtenerQrBoleto(pedQr); as qrModal) {
+          <div
+            class="qr-mini-box qr-lg"
+            style="margin: 0 auto 14px;"
+            [style.grid-template-columns]="'repeat(' + qrModal.size + ', 1fr)'"
+            [style.grid-template-rows]="'repeat(' + qrModal.size + ', 1fr)'"
+          >
+            @for (bit of qrModal.cells; track $index) {
+              <span class="qr-cell" [class.filled]="bit"></span>
+            }
+          </div>
+        }
 
         <div
           class="font-mono"
@@ -1775,12 +1874,19 @@
           PIN: {{ pedQr.pinEntrega || '2026' }}
         </div>
 
-        <div style="display: flex; gap: 10px; justify-content: center;">
-          @if (esCafeteria() && pedQr.estado !== 'ENTREGADO' && pedQr.estado !== 'CANCELADO') {
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="action-pill"
+            (click)="abrirVistaVerificacionQr(pedQr)"
+          >
+            <span>Abrir Vista Web de Verificación</span>
+          </button>
+          @if (esCafeteria() && pedQr.estado === 'LISTO') {
             <button
               type="button"
               class="btn-emitir"
-              style="background: var(--green);"
+              style="background: var(--green); width: auto;"
               (click)="validarEntregaPorPinEnBarra(pedQr.pinEntrega || pedQr.codigo); pedidoQrActiva.set(null)"
             >
               CONFIRMAR ENTREGA EN BARRA
@@ -1788,6 +1894,123 @@
           }
           <button type="button" class="tab-arc-btn" (click)="pedidoQrActiva.set(null)">
             Cerrar Pase
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL VISTA WEB DE VERIFICACIÓN OFICIAL (AL ESCANEAR QR) ==================== -->
+  @if (boletoVerificadoQr(); as verif) {
+    <div class="modal-overlay" (click)="boletoVerificadoQr.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <div style="text-align: center; margin-bottom: 12px;">
+          <span class="ready-code" style="background: var(--green); font-size: 0.76rem; padding: 5px 14px;">
+            ✓ BOLETO DIGITAL AUTÉNTICO VERIFICADO · CAFETERÍA UTP
+          </span>
+          <h3 style="margin-top: 10px; font-size: 1.35rem;">ORDEN #{{ verif.codigo }}</h3>
+          <div class="font-mono" style="font-size: 0.76rem; color: var(--muted);">
+            PIN DE BARRA: <strong>{{ verif.pinEntrega || '2026' }}</strong> · Estado:
+            <strong style="color: var(--ink);">{{ verif.estado }}</strong>
+          </div>
+        </div>
+
+        <div class="boleta-thermal" style="margin-bottom: 14px;">
+          <div><strong>ESTUDIANTE:</strong> {{ verif.nombreCliente || 'Estudiante UTP' }} ({{ verif.codigoCliente || 'UTP' }})</div>
+          <div><strong>FECHA / HORA:</strong> {{ verif.fechaRegistro }}</div>
+          <div><strong>HORARIO RECOJO:</strong> {{ verif.horarioRecojo || 'INMEDIATO' }}</div>
+          <div><strong>PAGO:</strong> {{ verif.metodoPago }} ({{ verif.estadoPago }})</div>
+          <div style="border-top: 1px dashed var(--ink); margin: 8px 0; padding-top: 8px;">
+            @for (it of verif.items; track $index) {
+              <div style="display: flex; justify-content: space-between;">
+                <span>{{ it.cantidad }}x {{ it.nombreProducto }}</span>
+                <strong>S/ {{ it.subtotal | number: '1.2-2' }}</strong>
+              </div>
+            }
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700;">
+            <span>TOTAL VERIFICADO:</span>
+            <span>S/ {{ verif.total | number: '1.2-2' }}</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          @if (esCafeteria() && verif.estado === 'LISTO') {
+            <button
+              type="button"
+              class="btn-emitir"
+              style="background: var(--green);"
+              (click)="validarEntregaPorPinEnBarra(verif.pinEntrega || verif.codigo); boletoVerificadoQr.set(null)"
+            >
+              ENTREGAR PEDIDO AHORA
+            </button>
+          }
+          <button type="button" class="tab-arc-btn" (click)="boletoVerificadoQr.set(null)">
+            Cerrar Verificación
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL KARDEX / AUDITORÍA DE STOCK POR PLATO ==================== -->
+  @if (productoKardexModal(); as prodK) {
+    <div class="modal-overlay" (click)="productoKardexModal.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">KARDEX E INVENTARIO · AUDITORÍA TI</span>
+        <h3 style="margin: 8px 0 4px;">{{ prodK.nombre }} (#{{ prodK.id }})</h3>
+        <p class="font-mono" style="font-size: 0.74rem; color: var(--muted); margin-bottom: 12px;">
+          Categoría: {{ prodK.categoria }} · Precio Unitario: S/ {{ prodK.precio | number: '1.2-2' }}
+        </p>
+
+        @if (resumenKardexProducto(); as kdx) {
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;" class="font-mono">
+            <div style="background: var(--bg-warm); border: 1px solid var(--ink); padding: 10px;">
+              <small style="color: var(--muted);">STOCK DISPONIBLE</small><br />
+              <strong style="font-size: 1.15rem;">{{ prodK.stock ?? '∞' }} u.</strong>
+            </div>
+            <div style="background: var(--amber-soft); border: 1px solid #92400E; padding: 10px; color: #92400E;">
+              <small>EN COCINA / BARRA</small><br />
+              <strong style="font-size: 1.15rem;">{{ kdx.enCurso }} u.</strong>
+            </div>
+            <div style="background: var(--green-soft); border: 1px solid #0F766E; padding: 10px; color: #0F766E;">
+              <small>ENTREGADAS (VENTA)</small><br />
+              <strong style="font-size: 1.05rem;">{{ kdx.entregadas }} u. (S/ {{ kdx.recaudado | number: '1.2-2' }})</strong>
+            </div>
+            <div style="background: var(--utp-red-soft); border: 1px solid var(--utp-red); padding: 10px; color: var(--utp-red);">
+              <small>DEVUELTAS (CANCELADAS)</small><br />
+              <strong style="font-size: 1.15rem;">{{ kdx.devueltasCanceladas }} u.</strong>
+            </div>
+          </div>
+
+          <div class="font-mono" style="font-size: 0.72rem; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>ÚLTIMOS 5 MOVIMIENTOS RECIENTES:</strong>
+              <span style="color: var(--muted);">Total registros: {{ kdx.totalMovimientos }}</span>
+            </div>
+            <div class="kardex-scroll-list">
+              @for (m of kdx.movimientos; track $index) {
+                <div class="receipt-row">
+                  <span>#{{ m.codigo }} · {{ m.cliente }} ({{ m.cantidad }}u)</span>
+                  <strong>{{ m.estado }}</strong>
+                </div>
+              } @empty {
+                <div style="color: var(--muted); padding: 8px 0;">Sin movimientos registrados en las órdenes actuales.</div>
+              }
+            </div>
+          </div>
+        }
+
+        <div style="display: flex; gap: 10px;">
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="sumarStockRapido(prodK, 10); productoKardexModal.set(null)"
+          >
+            +10 UNIDADES AL STOCK
+          </button>
+          <button type="button" class="tab-arc-btn" (click)="productoKardexModal.set(null)">
+            Cerrar Kardex
           </button>
         </div>
       </div>
@@ -1854,11 +2077,18 @@
           </div>
 
           <div style="text-align: center;">
-            <div class="qr-mini-box" style="margin: 0 auto 6px;">
-              @for (bit of generarMatrizQr('SUNAT-B001-' + bol.codigo); track $index) {
-                <span class="qr-cell" [class.filled]="bit"></span>
-              }
-            </div>
+            @if (obtenerQrBoletaSunat(bol); as qrSunat) {
+              <div
+                class="qr-mini-box qr-md"
+                style="margin: 0 auto 6px;"
+                [style.grid-template-columns]="'repeat(' + qrSunat.size + ', 1fr)'"
+                [style.grid-template-rows]="'repeat(' + qrSunat.size + ', 1fr)'"
+              >
+                @for (bit of qrSunat.cells; track $index) {
+                  <span class="qr-cell" [class.filled]="bit"></span>
+                }
+              </div>
+            }
             <small>Representación impresa de la Boleta de Venta Electrónica</small>
           </div>
         </div>
@@ -1875,42 +2105,243 @@
     </div>
   }
 
-  <!-- ==================== MODAL CAMBIO DE CONTRASEÑA PROPIA ==================== -->
+  <!-- ==================== MODAL MI PERFIL, PUNTOS UTP Y CAMBIO DE CONTRASEÑA ==================== -->
   @if (mostrarModalPassword()) {
     <div class="modal-overlay" (click)="mostrarModalPassword.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
-        <span class="arch-hero-tag">SEGURIDAD DE CUENTA · UTP</span>
-        <h3 style="margin: 8px 0 6px;">Actualizar Contraseña</h3>
-        <form (ngSubmit)="guardarCambioPassword()">
-          <div class="field-group">
-            <label>Contraseña Actual</label>
-            <input
-              type="password"
-              name="passActual"
-              placeholder="Ingresa tu clave actual"
-              [(ngModel)]="passActual"
-              required
-            />
+        <span class="arch-hero-tag">MI PERFIL UNIVERSITARIO · UTP</span>
+
+        <div style="margin: 8px 0 12px; padding-bottom: 10px; border-bottom: 1px dashed var(--line);">
+          <h3 style="margin-bottom: 2px;">{{ sesion()?.nombreCompleto || sesion()?.codigo }}</h3>
+          <small class="font-mono" style="color: var(--muted);">
+            Código: <strong>{{ sesion()?.codigo }}</strong> · Correo: {{ sesion()?.correo || 'Institucional' }}
+          </small>
+        </div>
+
+        @if (!esCafeteria()) {
+          <!-- Vista de Perfil Estudiante: Puntos UTP, Resumen de Ahorro, Favoritos y Preferencias -->
+          <div
+            class="font-mono"
+            style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 12px; padding: 9px 12px; margin-bottom: 10px;"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-bottom: 5px;">
+              <strong>★ Puntos UTP Acumulados:</strong>
+              <strong style="color: var(--utp-red);">{{ puntosUtpDisponibles() }} / 100 pts</strong>
+            </div>
+            <div style="height: 6px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin-bottom: 4px;">
+              <div
+                style="height: 100%; background: var(--utp-red);"
+                [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
+              ></div>
+            </div>
+            <small style="color: var(--muted); font-size: 0.67rem;">
+              1 sol entregado = 1 pto · Al juntar 100 pts canjeas -S/ 2.00 en tu ticket.
+            </small>
           </div>
-          <div class="field-group">
-            <label>Nueva Contraseña (mín. 8 caracteres)</label>
-            <input
-              type="password"
-              name="passNueva"
-              placeholder="Mínimo 8 caracteres"
-              [(ngModel)]="passNueva"
-              required
-            />
+
+          <!-- 3 Mini-Tarjetas de Actividad y Ahorro Universitario -->
+          @if (resumenPerfilEstudiante(); as resEst) {
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+              <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 7px 8px;">
+                <small style="color: var(--muted); font-size: 0.62rem; display: block;">ÓRDENES ENTREGADAS</small>
+                <strong style="font-size: 0.95rem;">{{ resEst.entregados }}</strong>
+              </div>
+              <div class="font-mono" style="background: var(--green-soft); border: 1px solid var(--ink); border-radius: 10px; padding: 7px 8px;">
+                <small style="color: #0F766E; font-size: 0.62rem; display: block;">AHORRO UTP TOTAL</small>
+                <strong style="font-size: 0.95rem; color: #0F766E;">S/ {{ resEst.ahorroTotal | number: '1.2-2' }}</strong>
+              </div>
+              <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 7px 8px;">
+                <small style="color: var(--muted); font-size: 0.62rem; display: block;">FAVORITOS (★)</small>
+                <strong style="font-size: 0.95rem;">{{ resEst.favoritos.length }} platos</strong>
+              </div>
+            </div>
+
+            @if (resEst.platoMasPedido; as topPlato) {
+              <div
+                class="font-mono"
+                style="background: #FFFFFF; border: 1px dashed var(--ink); border-radius: 10px; padding: 7px 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.73rem;"
+              >
+                <div>
+                  <span style="color: var(--muted);">Tu plato más pedido ({{ topPlato.cantidad }}x):</span><br />
+                  <strong>{{ topPlato.nombre }}</strong>
+                </div>
+                @if (topPlato.producto && topPlato.producto.disponible) {
+                  <button
+                    type="button"
+                    class="action-pill"
+                    (click)="agregarDesdePerfil(topPlato.producto)"
+                  >
+                    + Al Ticket
+                  </button>
+                }
+              </div>
+            }
+
+            @if (resEst.favoritos.length > 0) {
+              <div style="margin-bottom: 10px;">
+                <small class="font-mono" style="color: var(--muted); font-size: 0.68rem; display: block; margin-bottom: 4px;">
+                  <strong>★ MIS PLATOS FAVORITOS (1 CLIC AL TICKET):</strong>
+                </small>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  @for (fav of resEst.favoritos; track fav.id) {
+                    <button
+                      type="button"
+                      class="action-pill"
+                      (click)="agregarDesdePerfil(fav)"
+                      title="Agregar al ticket"
+                    >
+                      <span>★ {{ fav.nombre }} · S/ {{ fav.precio | number: '1.2-2' }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          }
+
+          <!-- Preferencias Rápidas de Pedido (Pago y Crema) -->
+          <div
+            class="font-mono"
+            style="background: var(--bg-warm); border: 1px dashed var(--ink); border-radius: 10px; padding: 8px 10px; margin-bottom: 12px; font-size: 0.7rem;"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+              <strong>Pago predeterminado:</strong>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                @for (mp of ['YAPE', 'PLIN', 'TARJETA']; track mp) {
+                  <button
+                    type="button"
+                    class="action-pill"
+                    style="padding: 2px 7px; font-size: 0.65rem;"
+                    [class.active-filter]="metodoPago === mp"
+                    (click)="guardarPreferenciaPagoPerfil(mp)"
+                  >
+                    {{ mp }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+              <strong>Crema favorita:</strong>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                @for (cr of ['Mayonesa', 'Ají de la casa', 'Kétchup', 'Salsa criolla']; track cr) {
+                  <button
+                    type="button"
+                    class="action-pill"
+                    style="padding: 2px 7px; font-size: 0.65rem;"
+                    [class.active-filter]="cremaPreferidaPerfil() === cr"
+                    (click)="guardarPreferenciaCremaPerfil(cr)"
+                  >
+                    {{ cr }}
+                  </button>
+                }
+              </div>
+            </div>
           </div>
-          <div style="display: flex; gap: 10px; margin-top: 16px;">
-            <button type="submit" class="btn-emitir" [disabled]="cargando()">
-              ACTUALIZAR CONTRASEÑA
+        } @else {
+          <!-- Vista de Perfil Operativo (Gestión de Turno, Stock Crítico y Exportación) -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
+            <div class="font-mono" style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">RECAUDACIÓN DEL DÍA</small>
+              <strong style="font-size: 1rem; color: #0F766E;">S/ {{ totalRecaudadoDia() | number: '1.2-2' }}</strong>
+            </div>
+            <div class="font-mono" style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">COMANDAS EN CURSO</small>
+              <strong style="font-size: 1rem;">{{ pedidosEnCurso().length }} activas</strong>
+            </div>
+            <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">STOCK CRÍTICO (≤ 5)</small>
+              <strong style="font-size: 0.92rem;" [style.color]="productosStockCriticoCount() > 0 ? 'var(--utp-red)' : 'var(--ink)'">
+                {{ productosStockCriticoCount() }} insumos
+              </strong>
+            </div>
+            <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">TICKETS ITIL ABIERTOS</small>
+              <strong style="font-size: 0.92rem;" [style.color]="incidenciasAbiertasCount() > 0 ? 'var(--utp-red)' : 'var(--ink)'">
+                {{ incidenciasAbiertasCount() }} pendientes
+              </strong>
+            </div>
+          </div>
+
+          <div
+            style="background: var(--bg-warm); border: 1px dashed var(--ink); border-radius: 10px; padding: 9px 10px; margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: space-between;"
+          >
+            <span class="font-mono" style="font-size: 0.72rem;">
+              <strong>Recepción Cocina:</strong>
+              <span [style.color]="cocinaAbierta() ? '#0F766E' : 'var(--utp-red)'">
+                {{ cocinaAbierta() ? '● ABIERTA' : '● EN PAUSA' }}
+              </span>
+            </span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="action-pill" (click)="alternarEstadoCocinaAdmin()">
+                {{ cocinaAbierta() ? 'Pausar Cocina' : 'Reabrir Cocina' }}
+              </button>
+              @if (productosStockCriticoCount() > 0) {
+                <button type="button" class="action-pill" (click)="reabastecerStockCriticoAdmin()">
+                  Reabastecer Stock (20 u.)
+                </button>
+              }
+              <button type="button" class="action-pill" (click)="exportarArqueoCsv()">
+                Exportar Arqueo .CSV
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Opciones rápidas de Perfil: Cambiar contraseña (desplegable compacto) o Cambiar de usuario -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+          <button
+            type="button"
+            class="action-pill"
+            [class.active-filter]="expandirCambioPassword()"
+            (click)="expandirCambioPassword.set(!expandirCambioPassword())"
+          >
+            <span>{{ expandirCambioPassword() ? '▾ Ocultar cambio de contraseña' : '▸ Cambiar mi contraseña' }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="action-pill"
+            (click)="mostrarModalPassword.set(false); abrirModalLogin()"
+          >
+            <span>Cambiar de Usuario</span>
+          </button>
+        </div>
+
+        @if (expandirCambioPassword()) {
+          <form
+            (ngSubmit)="guardarCambioPassword()"
+            style="background: var(--bg-warm); border: 1px dashed var(--ink); padding: 12px; margin-bottom: 12px;"
+          >
+            <div class="field-group">
+              <label>Contraseña Actual</label>
+              <input
+                type="password"
+                name="passActual"
+                placeholder="Ingresa tu contraseña actual"
+                [(ngModel)]="passActual"
+                required
+              />
+            </div>
+            <div class="field-group" style="margin-bottom: 10px;">
+              <label>Nueva Contraseña (mín. 8 caracteres)</label>
+              <input
+                type="password"
+                name="passNueva"
+                placeholder="Mínimo 8 caracteres"
+                [(ngModel)]="passNueva"
+                required
+              />
+            </div>
+            <button type="submit" class="btn-emitir" style="padding: 9px;" [disabled]="cargando()">
+              GUARDAR NUEVA CONTRASEÑA
             </button>
-            <button type="button" class="tab-arc-btn" (click)="mostrarModalPassword.set(false)">
-              Cancelar
-            </button>
-          </div>
-        </form>
+          </form>
+        }
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+          <button type="button" class="tab-arc-btn" (click)="mostrarModalPassword.set(false)">
+            Cerrar Perfil
+          </button>
+        </div>
       </div>
     </div>
   }
@@ -2033,23 +2464,34 @@
   @if (mostrarModalAuth()) {
     <div class="modal-overlay" (click)="mostrarModalAuth.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
-        <div class="auth-mode-switch" style="flex-wrap: wrap;">
-          <button
-            type="button"
-            class="tab-arc-btn"
-            [class.active]="modoAuth() === 'LOGIN'"
-            (click)="modoAuth.set('LOGIN')"
-          >
-            Iniciar Sesión
-          </button>
-          <button
-            type="button"
-            class="tab-arc-btn"
-            [class.active]="modoAuth() === 'REGISTRO'"
-            (click)="modoAuth.set('REGISTRO')"
-          >
-            Crear Cuenta Estudiante
-          </button>
+        <div class="auth-mode-switch" style="flex-wrap: wrap; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="modoAuth() === 'LOGIN'"
+              (click)="modoAuth.set('LOGIN')"
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="modoAuth() === 'REGISTRO'"
+              (click)="modoAuth.set('REGISTRO')"
+            >
+              Crear Cuenta Estudiante
+            </button>
+          </div>
+          @if (estaAutenticado()) {
+            <button
+              type="button"
+              class="action-pill"
+              (click)="mostrarModalAuth.set(false); abrirModalCambioPassword()"
+            >
+              <span>← Volver a Mi Perfil</span>
+            </button>
+          }
         </div>
 
         @if (modoAuth() === 'LOGIN') {
@@ -2061,7 +2503,7 @@
               Acceso Universitario UTP
             </h3>
             <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 14px;">
-              Ingresa con tu código UTP o cuenta administrativa de Cafetería.
+              Ingresa con tu código UTP o correo institucional.
             </p>
 
             <div class="field-group">

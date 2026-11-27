@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import * as QRCode from 'qrcode';
 import {
   ArqueoCajaResponse,
   ItemCarrito,
@@ -22,6 +23,7 @@ export class App implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private pollingTimer: ReturnType<typeof setInterval> | null = null;
   private estadosPreviosPedidos = new Map<number, string>();
+  private qrCache = new Map<string, { size: number; cells: boolean[] }>();
 
   // Navegación
   vistaActiva = signal<'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'>('CATALOGO');
@@ -54,6 +56,7 @@ export class App implements OnInit, OnDestroy {
   regNombre = '';
   regPassword = '';
   mostrarModalPassword = signal(false);
+  expandirCambioPassword = signal(false);
   passActual = '';
   passNueva = '';
 
@@ -211,6 +214,81 @@ export class App implements OnInit, OnDestroy {
     return 0;
   });
 
+  canjearPuntosUtp = signal(false);
+  cremaPreferidaPerfil = signal<string>('');
+
+  puntosUtpDisponibles = computed(() => {
+    if (this.esCafeteria()) return 0;
+    let ganados = 0;
+    let gastados = 0;
+    for (const p of this.pedidos()) {
+      if (p.estado === 'ENTREGADO' && p.total) {
+        ganados += Math.floor(p.total);
+      }
+      if (p.estado !== 'CANCELADO' && p.descuentoPuntos && p.descuentoPuntos > 0) {
+        gastados += 100;
+      }
+    }
+    return Math.max(0, ganados - gastados);
+  });
+
+  resumenPerfilEstudiante = computed(() => {
+    let entregados = 0;
+    let ahorroTotal = 0;
+    const conteoPlatos = new Map<string, { nombre: string; cantidad: number; productoId?: number }>();
+
+    for (const p of this.pedidos()) {
+      if (p.estado !== 'CANCELADO') {
+        ahorroTotal += (p.descuentoCombo || 0) + (p.descuentoPuntos || 0);
+      }
+      if (p.estado === 'ENTREGADO') {
+        entregados++;
+        for (const it of p.items || []) {
+          const clave = (it.nombreProducto || '').toLowerCase();
+          if (clave) {
+            const actual = conteoPlatos.get(clave);
+            if (actual) {
+              actual.cantidad += it.cantidad;
+            } else {
+              conteoPlatos.set(clave, {
+                nombre: it.nombreProducto,
+                cantidad: it.cantidad,
+                productoId: it.productoId
+              });
+            }
+          }
+        }
+      }
+    }
+
+    let platoMasPedido: { nombre: string; cantidad: number; producto?: Producto } | null = null;
+    for (const reg of conteoPlatos.values()) {
+      if (!platoMasPedido || reg.cantidad > platoMasPedido.cantidad) {
+        const prod = this.productos().find(
+          (pr) => pr.id === reg.productoId || pr.nombre.toLowerCase() === reg.nombre.toLowerCase()
+        );
+        platoMasPedido = { nombre: reg.nombre, cantidad: reg.cantidad, producto: prod };
+      }
+    }
+
+    const favoritos = this.productos().filter((pr) => pr.id && this.favoritosIds().includes(pr.id));
+    return {
+      entregados,
+      ahorroTotal,
+      platoMasPedido,
+      favoritos
+    };
+  });
+
+  productosStockCriticoCount = computed(
+    () => this.productos().filter((p) => !p.disponible || (p.stock ?? 0) <= 5).length
+  );
+
+  descuentoPuntosCarrito = computed(() => {
+    if (this.carrito().length === 0) return 0;
+    return this.canjearPuntosUtp() && this.puntosUtpDisponibles() >= 100 ? 2.0 : 0.0;
+  });
+
   sugerenciaComboCarrito = computed(() => {
     if (this.carrito().length === 0) return '';
     const grupos = this.gruposCategoriasEnCarrito();
@@ -234,7 +312,10 @@ export class App implements OnInit, OnDestroy {
       (acc, item) => acc + item.producto.precio * item.cantidad,
       0
     );
-    return Math.max(0, base + this.montoExtrasCarrito() - this.descuentoComboCarrito());
+    return Math.max(
+      0,
+      base + this.montoExtrasCarrito() - this.descuentoComboCarrito() - this.descuentoPuntosCarrito()
+    );
   });
 
   // Pasarela de Pago Interactiva "UTP Pay" y Boleta Electrónica SUNAT
@@ -245,6 +326,48 @@ export class App implements OnInit, OnDestroy {
   tarjetaCvv = '842';
   pedidoBoletaActiva = signal<Pedido | null>(null);
   pedidoQrActiva = signal<Pedido | null>(null);
+  boletoVerificadoQr = signal<Pedido | null>(null);
+  productoKardexModal = signal<Producto | null>(null);
+
+  resumenKardexProducto = computed(() => {
+    const prod = this.productoKardexModal();
+    if (!prod) return null;
+    let enCurso = 0;
+    let entregadas = 0;
+    let recaudado = 0;
+    let devueltasCanceladas = 0;
+    const movimientos: { codigo: string; fecha: string; estado: string; cantidad: number; cliente: string }[] = [];
+
+    for (const ped of this.pedidos()) {
+      for (const it of ped.items || []) {
+        if (it.productoId === prod.id || it.nombreProducto?.toLowerCase() === prod.nombre.toLowerCase()) {
+          if (ped.estado === 'ENTREGADO') {
+            entregadas += it.cantidad;
+            recaudado += it.subtotal;
+          } else if (ped.estado === 'CANCELADO') {
+            devueltasCanceladas += it.cantidad;
+          } else {
+            enCurso += it.cantidad;
+          }
+          movimientos.push({
+            codigo: ped.codigo,
+            fecha: ped.fechaRegistro,
+            estado: ped.estado,
+            cantidad: it.cantidad,
+            cliente: ped.nombreCliente || ped.codigoCliente || 'Estudiante'
+          });
+        }
+      }
+    }
+    return {
+      enCurso,
+      entregadas,
+      recaudado,
+      devueltasCanceladas,
+      totalMovimientos: movimientos.length,
+      movimientos: movimientos.slice(0, 5)
+    };
+  });
 
   // Pedidos, Tiempo Estimado Dinámico, Escáner de Barra y Arqueo de Caja
   pedidos = signal<Pedido[]>([]);
@@ -381,6 +504,7 @@ export class App implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.restaurarSesion();
     this.restaurarFavoritos();
+    this.restaurarPreferenciasPerfil();
     this.cargarProductos();
     this.cargarMonitorBarra();
     this.cargarEstadoCocina();
@@ -390,7 +514,28 @@ export class App implements OnInit, OnDestroy {
         this.consultarRecaudacion();
       }
     }
+    this.verificarParametroQrUrl();
     this.iniciarPollingTiempoReal();
+  }
+
+  private verificarParametroQrUrl(): void {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const cod = params.get('verificar');
+      const pin = params.get('pin') || undefined;
+      if (cod) {
+        this.api.verificarBoletoQr(cod, pin).subscribe({
+          next: (ped) => {
+            this.boletoVerificadoQr.set(ped);
+          },
+          error: () => {
+            this.mostrarMensaje('error', `No se encontró el boleto #${cod} para verificación QR`);
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
   }
 
   ngOnDestroy(): void {
@@ -452,6 +597,47 @@ export class App implements OnInit, OnDestroy {
         this.favoritosIds.set([]);
       }
     }
+  }
+
+  private restaurarPreferenciasPerfil(): void {
+    const pagoPref = localStorage.getItem('cafeteria_pref_pago');
+    if (pagoPref && ['YAPE', 'PLIN', 'TARJETA'].includes(pagoPref)) {
+      this.metodoPago = pagoPref;
+    }
+    const cremaPref = localStorage.getItem('cafeteria_pref_crema');
+    if (cremaPref) {
+      this.cremaPreferidaPerfil.set(cremaPref);
+    }
+  }
+
+  guardarPreferenciaPagoPerfil(metodo: string): void {
+    this.metodoPago = metodo;
+    localStorage.setItem('cafeteria_pref_pago', metodo);
+    this.mostrarMensaje('exito', `Método de pago preferido actualizado a ${metodo}`);
+  }
+
+  guardarPreferenciaCremaPerfil(crema: string): void {
+    const nueva = this.cremaPreferidaPerfil() === crema ? '' : crema;
+    this.cremaPreferidaPerfil.set(nueva);
+    localStorage.setItem('cafeteria_pref_crema', nueva);
+    if (nueva && !this.cremasSeleccionadas().includes(nueva)) {
+      this.cremasSeleccionadas.set([...this.cremasSeleccionadas(), nueva]);
+    }
+    this.mostrarMensaje(
+      'exito',
+      nueva ? `Crema favorita configurada: ${nueva}` : 'Preferencia de crema limpiada'
+    );
+  }
+
+  agregarDesdePerfil(producto?: Producto): void {
+    if (!producto) return;
+    this.agregarAlCarrito(producto);
+    const cremaPref = this.cremaPreferidaPerfil();
+    if (cremaPref && !this.cremasSeleccionadas().includes(cremaPref)) {
+      this.cremasSeleccionadas.set([...this.cremasSeleccionadas(), cremaPref]);
+    }
+    this.mostrarModalPassword.set(false);
+    this.vistaActiva.set('CATALOGO');
   }
 
   esFavorito(productoId?: number): boolean {
@@ -584,28 +770,119 @@ export class App implements OnInit, OnDestroy {
     return idxActual > idxEtapa || estadoActual === 'ENTREGADO';
   }
 
-  // Generador determinístico de matriz 7x7 estilo QR SVG (Costo S/ 0)
-  generarMatrizQr(texto: string): boolean[] {
-    const s = texto || 'CAF-UTP';
-    let hash = 2166136261;
-    for (let i = 0; i < s.length; i++) {
-      hash ^= s.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
+  // Generador ISO/IEC 18004 Real Escaneable con Cámara de Celular (Reed-Solomon)
+  obtenerDatosQrReal(contenido: string): { size: number; cells: boolean[] } {
+    const clave = contenido || 'CAFETERIA-UTP';
+    const enCache = this.qrCache.get(clave);
+    if (enCache) {
+      return enCache;
     }
-    const celdas: boolean[] = [];
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        const esEsquina =
-          (r < 2 && c < 2) || (r < 2 && c > 4) || (r > 4 && c < 2);
-        if (esEsquina) {
-          celdas.push(true);
-        } else {
-          const bit = ((Math.abs(hash) >> ((r * 7 + c) % 24)) ^ (r * 3 + c)) & 1;
-          celdas.push(bit === 1);
-        }
+    try {
+      const qr = QRCode.create(clave, { errorCorrectionLevel: 'M' });
+      const size = qr.modules.size;
+      const data = qr.modules.data;
+      const cells: boolean[] = new Array(size * size);
+      for (let i = 0; i < data.length; i++) {
+        cells[i] = data[i] === 1;
+      }
+      const resultado = { size, cells };
+      this.qrCache.set(clave, resultado);
+      return resultado;
+    } catch {
+      return { size: 7, cells: new Array(49).fill(true) };
+    }
+  }
+
+  obtenerQrBoleto(ped: Pedido): { size: number; cells: boolean[] } {
+    const itemsResumen = (ped.items || [])
+      .map((i) => `${i.cantidad}x ${i.nombreProducto}`)
+      .join(', ');
+    const fichaOffline = [
+      '=== CAFETERIA UTP · SEDE PIURA ===',
+      '[OK] BOLETO DIGITAL VERIFICADO',
+      `ORDEN : #${ped.codigo}`,
+      `PIN   : ${ped.pinEntrega || '2026'}`,
+      `ALUMNO: ${ped.nombreCliente || ped.codigoCliente || 'Estudiante UTP'}`,
+      `RECOJO: ${ped.horarioRecojo || 'INMEDIATO'}`,
+      `PLATOS: ${itemsResumen || 'Orden UTP'}`,
+      `PAGO  : ${ped.metodoPago} (${ped.estadoPago})`,
+      `TOTAL : S/ ${(ped.total || 0).toFixed(2)}`,
+      `ESTADO: ${ped.estado}`
+    ].join('\n');
+    return this.obtenerDatosQrReal(fichaOffline);
+  }
+
+  abrirVistaVerificacionQr(ped: Pedido): void {
+    this.pedidoQrActiva.set(null);
+    this.boletoVerificadoQr.set(ped);
+  }
+
+  calcularSlaComanda(ped: Pedido): { minutos: number; color: string; fondo: string; etiqueta: string; vencido: boolean } {
+    let min = 0;
+    if (ped.fechaRegistro) {
+      const iso = ped.fechaRegistro.replace(' ', 'T');
+      const ts = Date.parse(iso);
+      if (!isNaN(ts)) {
+        min = Math.max(0, Math.floor((Date.now() - ts) / 60000));
       }
     }
-    return celdas;
+    if (min < 5) {
+      return {
+        minutos: min,
+        color: '#0F766E',
+        fondo: 'var(--green-soft)',
+        etiqueta: `SLA EN TIEMPO · ${min}m`,
+        vencido: false
+      };
+    }
+    if (min <= 10) {
+      return {
+        minutos: min,
+        color: '#92400E',
+        fondo: 'var(--amber-soft)',
+        etiqueta: `SLA POR VENCER · ${min}m`,
+        vencido: false
+      };
+    }
+    return {
+      minutos: min,
+      color: 'var(--utp-red)',
+      fondo: 'var(--utp-red-soft)',
+      etiqueta: `¡SLA VENCIDO · PRIORIDAD! (${min}m)`,
+      vencido: true
+    };
+  }
+
+  obtenerEtiquetaNutricional(p: Producto): string {
+    const n = (p.nombre || '').toLowerCase();
+    if (n.includes('pollo al horno')) return '340 kcal · Alto en proteína · Horneado';
+    if (n.includes('pan con pollo')) return '360 kcal · Proteína magra · Contiene gluten';
+    if (n.includes('hamburguesa')) return '520 kcal · Carne 100% res · Recién hecho';
+    if (n.includes('chicharrón') || n.includes('chicharron')) return '580 kcal · Tradicional · Sin conservantes';
+    if (n.includes('papa rellena')) return '410 kcal · Relleno casero · Contiene huevo';
+    if (n.includes('empanada')) return '310 kcal · Masa horneada · Contiene gluten';
+    if (n.includes('alitas')) return '540 kcal · Proteína crocante · Porción completa';
+    if (n.includes('café') || n.includes('cafe')) return '15 kcal · 100% Grano pasado · Antioxidante';
+    if (n.includes('refresco')) return '90 kcal · Fruta natural · Vitamina C';
+    if (n.includes('alfajor')) return '280 kcal · Contiene lácteos y gluten';
+    if (n.includes('mazamorra')) return '240 kcal · Maíz morado natural · Sin lácteos';
+    return '290 kcal · Preparación fresca del día';
+  }
+
+  obtenerQrPasarela(): { size: number; cells: boolean[] } {
+    const texto = [
+      `UTP PAY - ORDEN DE PAGO ${this.metodoPago}`,
+      'COMERCIO: CAFETERIA UTP S.A.C.',
+      'RUC: 20462509236',
+      `IMPORTE: S/ ${this.totalMontoCarrito().toFixed(2)}`,
+      `HORARIO: ${this.horarioRecojoFinal()}`
+    ].join('\n');
+    return this.obtenerDatosQrReal(texto);
+  }
+
+  obtenerQrBoletaSunat(bol: Pedido): { size: number; cells: boolean[] } {
+    const texto = `20462509236|03|B001|000${bol.id}|IGV:${this.calcularIgv(bol.total).toFixed(2)}|TOTAL:${bol.total.toFixed(2)}|${bol.fechaRegistro}|${bol.codigoCliente || 'U2303001'}|${bol.codigo}`;
+    return this.obtenerDatosQrReal(texto);
   }
 
   cambiarVista(vista: 'CATALOGO' | 'MIS_PEDIDOS' | 'ADMIN'): void {
@@ -757,6 +1034,7 @@ export class App implements OnInit, OnDestroy {
   abrirModalCambioPassword(): void {
     this.passActual = '';
     this.passNueva = '';
+    this.expandirCambioPassword.set(false);
     this.mostrarModalPassword.set(true);
   }
 
@@ -937,9 +1215,11 @@ export class App implements OnInit, OnDestroy {
 
   vaciarCarrito(): void {
     this.carrito.set([]);
-    this.cremasSeleccionadas.set([]);
+    const cremaPref = this.cremaPreferidaPerfil();
+    this.cremasSeleccionadas.set(cremaPref ? [cremaPref] : []);
     this.extrasSeleccionados.set([]);
     this.modoHorarioRecojo.set('INMEDIATO');
+    this.canjearPuntosUtp.set(false);
   }
 
   // ================= PASARELA "UTP PAY" Y EMISIÓN DE ORDEN =================
@@ -1034,6 +1314,7 @@ export class App implements OnInit, OnDestroy {
       horarioRecojo: this.horarioRecojoFinal(),
       cremasYExtras: this.resumenCremasYExtras() || undefined,
       montoExtras: this.montoExtrasCarrito(),
+      descuentoPuntos: this.descuentoPuntosCarrito(),
       items: this.carrito().map((i) => ({
         productoId: i.producto.id!,
         cantidad: i.cantidad
@@ -1050,6 +1331,7 @@ export class App implements OnInit, OnDestroy {
         this.referenciaPago = '';
         this.mensajePedido = '';
         this.modoHorarioRecojo.set('INMEDIATO');
+        this.canjearPuntosUtp.set(false);
         this.reproducirCampanaSonora('nuevo');
         this.mostrarMensaje(
           'exito',

@@ -55,6 +55,7 @@ export interface Pedido {
   cremasYExtras?: string;
   montoExtras?: number;
   descuentoCombo?: number;
+  descuentoPuntos?: number;
   motivoCancelacion?: string;
   calificacion?: number;
   incidenciaTipo?: string;
@@ -75,6 +76,7 @@ export interface SolicitudPedidoDTO {
   cremasYExtras?: string;
   montoExtras?: number;
   descuentoCombo?: number;
+  descuentoPuntos?: number;
   items: { productoId: number; cantidad: number }[];
 }
 
