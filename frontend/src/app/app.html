@@ -2119,9 +2119,10 @@
         </div>
 
         @if (!esCafeteria()) {
+          <!-- Vista de Perfil Estudiante: Puntos UTP, Resumen de Ahorro, Favoritos y Preferencias -->
           <div
             class="font-mono"
-            style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 12px; padding: 9px 12px; margin-bottom: 14px;"
+            style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 12px; padding: 9px 12px; margin-bottom: 10px;"
           >
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-bottom: 5px;">
               <strong>★ Puntos UTP Acumulados:</strong>
@@ -2136,6 +2137,152 @@
             <small style="color: var(--muted); font-size: 0.67rem;">
               1 sol entregado = 1 pto · Al juntar 100 pts canjeas -S/ 2.00 en tu ticket.
             </small>
+          </div>
+
+          <!-- 3 Mini-Tarjetas de Actividad y Ahorro Universitario -->
+          @if (resumenPerfilEstudiante(); as resEst) {
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+              <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 7px 8px;">
+                <small style="color: var(--muted); font-size: 0.62rem; display: block;">ÓRDENES ENTREGADAS</small>
+                <strong style="font-size: 0.95rem;">{{ resEst.entregados }}</strong>
+              </div>
+              <div class="font-mono" style="background: var(--green-soft); border: 1px solid var(--ink); border-radius: 10px; padding: 7px 8px;">
+                <small style="color: #0F766E; font-size: 0.62rem; display: block;">AHORRO UTP TOTAL</small>
+                <strong style="font-size: 0.95rem; color: #0F766E;">S/ {{ resEst.ahorroTotal | number: '1.2-2' }}</strong>
+              </div>
+              <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 7px 8px;">
+                <small style="color: var(--muted); font-size: 0.62rem; display: block;">FAVORITOS (★)</small>
+                <strong style="font-size: 0.95rem;">{{ resEst.favoritos.length }} platos</strong>
+              </div>
+            </div>
+
+            @if (resEst.platoMasPedido; as topPlato) {
+              <div
+                class="font-mono"
+                style="background: #FFFFFF; border: 1px dashed var(--ink); border-radius: 10px; padding: 7px 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.73rem;"
+              >
+                <div>
+                  <span style="color: var(--muted);">Tu plato más pedido ({{ topPlato.cantidad }}x):</span><br />
+                  <strong>{{ topPlato.nombre }}</strong>
+                </div>
+                @if (topPlato.producto && topPlato.producto.disponible) {
+                  <button
+                    type="button"
+                    class="action-pill"
+                    (click)="agregarDesdePerfil(topPlato.producto)"
+                  >
+                    + Al Ticket
+                  </button>
+                }
+              </div>
+            }
+
+            @if (resEst.favoritos.length > 0) {
+              <div style="margin-bottom: 10px;">
+                <small class="font-mono" style="color: var(--muted); font-size: 0.68rem; display: block; margin-bottom: 4px;">
+                  <strong>★ MIS PLATOS FAVORITOS (1 CLIC AL TICKET):</strong>
+                </small>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  @for (fav of resEst.favoritos; track fav.id) {
+                    <button
+                      type="button"
+                      class="action-pill"
+                      (click)="agregarDesdePerfil(fav)"
+                      title="Agregar al ticket"
+                    >
+                      <span>★ {{ fav.nombre }} · S/ {{ fav.precio | number: '1.2-2' }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          }
+
+          <!-- Preferencias Rápidas de Pedido (Pago y Crema) -->
+          <div
+            class="font-mono"
+            style="background: var(--bg-warm); border: 1px dashed var(--ink); border-radius: 10px; padding: 8px 10px; margin-bottom: 12px; font-size: 0.7rem;"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+              <strong>Pago predeterminado:</strong>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                @for (mp of ['YAPE', 'PLIN', 'TARJETA', 'EFECTIVO']; track mp) {
+                  <button
+                    type="button"
+                    class="action-pill"
+                    style="padding: 2px 7px; font-size: 0.65rem;"
+                    [class.active-filter]="metodoPago === mp"
+                    (click)="guardarPreferenciaPagoPerfil(mp)"
+                  >
+                    {{ mp }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+              <strong>Crema favorita:</strong>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                @for (cr of ['Mayonesa', 'Ají de la casa', 'Kétchup', 'Salsa criolla']; track cr) {
+                  <button
+                    type="button"
+                    class="action-pill"
+                    style="padding: 2px 7px; font-size: 0.65rem;"
+                    [class.active-filter]="cremaPreferidaPerfil() === cr"
+                    (click)="guardarPreferenciaCremaPerfil(cr)"
+                  >
+                    {{ cr }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        } @else {
+          <!-- Vista de Perfil Operativo (Gestión de Turno, Stock Crítico y Exportación) -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
+            <div class="font-mono" style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">RECAUDACIÓN DEL DÍA</small>
+              <strong style="font-size: 1rem; color: #0F766E;">S/ {{ totalRecaudadoDia() | number: '1.2-2' }}</strong>
+            </div>
+            <div class="font-mono" style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">COMANDAS EN CURSO</small>
+              <strong style="font-size: 1rem;">{{ pedidosEnCurso().length }} activas</strong>
+            </div>
+            <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">STOCK CRÍTICO (≤ 5)</small>
+              <strong style="font-size: 0.92rem;" [style.color]="productosStockCriticoCount() > 0 ? 'var(--utp-red)' : 'var(--ink)'">
+                {{ productosStockCriticoCount() }} insumos
+              </strong>
+            </div>
+            <div class="font-mono" style="background: #FFFFFF; border: 1px solid var(--ink); border-radius: 10px; padding: 8px 10px;">
+              <small style="color: var(--muted); font-size: 0.63rem; display: block;">TICKETS ITIL ABIERTOS</small>
+              <strong style="font-size: 0.92rem;" [style.color]="incidenciasAbiertasCount() > 0 ? 'var(--utp-red)' : 'var(--ink)'">
+                {{ incidenciasAbiertasCount() }} pendientes
+              </strong>
+            </div>
+          </div>
+
+          <div
+            style="background: var(--bg-warm); border: 1px dashed var(--ink); border-radius: 10px; padding: 9px 10px; margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: space-between;"
+          >
+            <span class="font-mono" style="font-size: 0.72rem;">
+              <strong>Recepción Cocina:</strong>
+              <span [style.color]="cocinaAbierta() ? '#0F766E' : 'var(--utp-red)'">
+                {{ cocinaAbierta() ? '● ABIERTA' : '● EN PAUSA' }}
+              </span>
+            </span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="action-pill" (click)="alternarEstadoCocinaAdmin()">
+                {{ cocinaAbierta() ? 'Pausar Cocina' : 'Reabrir Cocina' }}
+              </button>
+              @if (productosStockCriticoCount() > 0) {
+                <button type="button" class="action-pill" (click)="reabastecerStockCriticoAdmin()">
+                  Reabastecer Stock (20 u.)
+                </button>
+              }
+              <button type="button" class="action-pill" (click)="exportarArqueoCsv()">
+                Exportar Arqueo .CSV
+              </button>
+            </div>
           </div>
         }
 

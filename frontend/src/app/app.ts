@@ -215,6 +215,7 @@ export class App implements OnInit, OnDestroy {
   });
 
   canjearPuntosUtp = signal(false);
+  cremaPreferidaPerfil = signal<string>('');
 
   puntosUtpDisponibles = computed(() => {
     if (this.esCafeteria()) return 0;
@@ -230,6 +231,58 @@ export class App implements OnInit, OnDestroy {
     }
     return Math.max(0, ganados - gastados);
   });
+
+  resumenPerfilEstudiante = computed(() => {
+    let entregados = 0;
+    let ahorroTotal = 0;
+    const conteoPlatos = new Map<string, { nombre: string; cantidad: number; productoId?: number }>();
+
+    for (const p of this.pedidos()) {
+      if (p.estado !== 'CANCELADO') {
+        ahorroTotal += (p.descuentoCombo || 0) + (p.descuentoPuntos || 0);
+      }
+      if (p.estado === 'ENTREGADO') {
+        entregados++;
+        for (const it of p.items || []) {
+          const clave = (it.nombreProducto || '').toLowerCase();
+          if (clave) {
+            const actual = conteoPlatos.get(clave);
+            if (actual) {
+              actual.cantidad += it.cantidad;
+            } else {
+              conteoPlatos.set(clave, {
+                nombre: it.nombreProducto,
+                cantidad: it.cantidad,
+                productoId: it.productoId
+              });
+            }
+          }
+        }
+      }
+    }
+
+    let platoMasPedido: { nombre: string; cantidad: number; producto?: Producto } | null = null;
+    for (const reg of conteoPlatos.values()) {
+      if (!platoMasPedido || reg.cantidad > platoMasPedido.cantidad) {
+        const prod = this.productos().find(
+          (pr) => pr.id === reg.productoId || pr.nombre.toLowerCase() === reg.nombre.toLowerCase()
+        );
+        platoMasPedido = { nombre: reg.nombre, cantidad: reg.cantidad, producto: prod };
+      }
+    }
+
+    const favoritos = this.productos().filter((pr) => pr.id && this.favoritosIds().includes(pr.id));
+    return {
+      entregados,
+      ahorroTotal,
+      platoMasPedido,
+      favoritos
+    };
+  });
+
+  productosStockCriticoCount = computed(
+    () => this.productos().filter((p) => !p.disponible || (p.stock ?? 0) <= 5).length
+  );
 
   descuentoPuntosCarrito = computed(() => {
     if (this.carrito().length === 0) return 0;
@@ -451,6 +504,7 @@ export class App implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.restaurarSesion();
     this.restaurarFavoritos();
+    this.restaurarPreferenciasPerfil();
     this.cargarProductos();
     this.cargarMonitorBarra();
     this.cargarEstadoCocina();
@@ -543,6 +597,47 @@ export class App implements OnInit, OnDestroy {
         this.favoritosIds.set([]);
       }
     }
+  }
+
+  private restaurarPreferenciasPerfil(): void {
+    const pagoPref = localStorage.getItem('cafeteria_pref_pago');
+    if (pagoPref) {
+      this.metodoPago = pagoPref;
+    }
+    const cremaPref = localStorage.getItem('cafeteria_pref_crema');
+    if (cremaPref) {
+      this.cremaPreferidaPerfil.set(cremaPref);
+    }
+  }
+
+  guardarPreferenciaPagoPerfil(metodo: string): void {
+    this.metodoPago = metodo;
+    localStorage.setItem('cafeteria_pref_pago', metodo);
+    this.mostrarMensaje('exito', `Método de pago preferido actualizado a ${metodo}`);
+  }
+
+  guardarPreferenciaCremaPerfil(crema: string): void {
+    const nueva = this.cremaPreferidaPerfil() === crema ? '' : crema;
+    this.cremaPreferidaPerfil.set(nueva);
+    localStorage.setItem('cafeteria_pref_crema', nueva);
+    if (nueva && !this.cremasSeleccionadas().includes(nueva)) {
+      this.cremasSeleccionadas.set([...this.cremasSeleccionadas(), nueva]);
+    }
+    this.mostrarMensaje(
+      'exito',
+      nueva ? `Crema favorita configurada: ${nueva}` : 'Preferencia de crema limpiada'
+    );
+  }
+
+  agregarDesdePerfil(producto?: Producto): void {
+    if (!producto) return;
+    this.agregarAlCarrito(producto);
+    const cremaPref = this.cremaPreferidaPerfil();
+    if (cremaPref && !this.cremasSeleccionadas().includes(cremaPref)) {
+      this.cremasSeleccionadas.set([...this.cremasSeleccionadas(), cremaPref]);
+    }
+    this.mostrarModalPassword.set(false);
+    this.vistaActiva.set('CATALOGO');
   }
 
   esFavorito(productoId?: number): boolean {
@@ -1120,7 +1215,8 @@ export class App implements OnInit, OnDestroy {
 
   vaciarCarrito(): void {
     this.carrito.set([]);
-    this.cremasSeleccionadas.set([]);
+    const cremaPref = this.cremaPreferidaPerfil();
+    this.cremasSeleccionadas.set(cremaPref ? [cremaPref] : []);
     this.extrasSeleccionados.set([]);
     this.modoHorarioRecojo.set('INMEDIATO');
     this.canjearPuntosUtp.set(false);
