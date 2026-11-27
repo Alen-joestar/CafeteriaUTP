@@ -13,6 +13,7 @@ public class SolicitudPedidoDTO {
     private String cremasYExtras;
     private Double montoExtras;
     private Double descuentoCombo;
+    private Double descuentoPuntos;
 
     public SolicitudPedidoDTO() {
     }
@@ -104,5 +105,13 @@ public class SolicitudPedidoDTO {
 
     public void setDescuentoCombo(Double descuentoCombo) {
         this.descuentoCombo = descuentoCombo;
+    }
+
+    public Double getDescuentoPuntos() {
+        return descuentoPuntos;
+    }
+
+    public void setDescuentoPuntos(Double descuentoPuntos) {
+        this.descuentoPuntos = descuentoPuntos;
     }
 }

@@ -213,6 +213,28 @@ export class App implements OnInit, OnDestroy {
     return 0;
   });
 
+  canjearPuntosUtp = signal(false);
+
+  puntosUtpDisponibles = computed(() => {
+    if (this.esCafeteria()) return 0;
+    let ganados = 0;
+    let gastados = 0;
+    for (const p of this.pedidos()) {
+      if (p.estado === 'ENTREGADO' && p.total) {
+        ganados += Math.floor(p.total);
+      }
+      if (p.estado !== 'CANCELADO' && p.descuentoPuntos && p.descuentoPuntos > 0) {
+        gastados += 20;
+      }
+    }
+    return Math.max(0, ganados - gastados);
+  });
+
+  descuentoPuntosCarrito = computed(() => {
+    if (this.carrito().length === 0) return 0;
+    return this.canjearPuntosUtp() && this.puntosUtpDisponibles() >= 20 ? 2.0 : 0.0;
+  });
+
   sugerenciaComboCarrito = computed(() => {
     if (this.carrito().length === 0) return '';
     const grupos = this.gruposCategoriasEnCarrito();
@@ -236,7 +258,10 @@ export class App implements OnInit, OnDestroy {
       (acc, item) => acc + item.producto.precio * item.cantidad,
       0
     );
-    return Math.max(0, base + this.montoExtrasCarrito() - this.descuentoComboCarrito());
+    return Math.max(
+      0,
+      base + this.montoExtrasCarrito() - this.descuentoComboCarrito() - this.descuentoPuntosCarrito()
+    );
   });
 
   // Pasarela de Pago Interactiva "UTP Pay" y Boleta Electrónica SUNAT
@@ -247,6 +272,47 @@ export class App implements OnInit, OnDestroy {
   tarjetaCvv = '842';
   pedidoBoletaActiva = signal<Pedido | null>(null);
   pedidoQrActiva = signal<Pedido | null>(null);
+  boletoVerificadoQr = signal<Pedido | null>(null);
+  productoKardexModal = signal<Producto | null>(null);
+
+  resumenKardexProducto = computed(() => {
+    const prod = this.productoKardexModal();
+    if (!prod) return null;
+    let enCurso = 0;
+    let entregadas = 0;
+    let recaudado = 0;
+    let devueltasCanceladas = 0;
+    const movimientos: { codigo: string; fecha: string; estado: string; cantidad: number; cliente: string }[] = [];
+
+    for (const ped of this.pedidos()) {
+      for (const it of ped.items || []) {
+        if (it.productoId === prod.id || it.nombreProducto?.toLowerCase() === prod.nombre.toLowerCase()) {
+          if (ped.estado === 'ENTREGADO') {
+            entregadas += it.cantidad;
+            recaudado += it.subtotal;
+          } else if (ped.estado === 'CANCELADO') {
+            devueltasCanceladas += it.cantidad;
+          } else {
+            enCurso += it.cantidad;
+          }
+          movimientos.push({
+            codigo: ped.codigo,
+            fecha: ped.fechaRegistro,
+            estado: ped.estado,
+            cantidad: it.cantidad,
+            cliente: ped.nombreCliente || ped.codigoCliente || 'Estudiante'
+          });
+        }
+      }
+    }
+    return {
+      enCurso,
+      entregadas,
+      recaudado,
+      devueltasCanceladas,
+      movimientos: movimientos.slice(0, 8)
+    };
+  });
 
   // Pedidos, Tiempo Estimado Dinámico, Escáner de Barra y Arqueo de Caja
   pedidos = signal<Pedido[]>([]);
@@ -392,7 +458,28 @@ export class App implements OnInit, OnDestroy {
         this.consultarRecaudacion();
       }
     }
+    this.verificarParametroQrUrl();
     this.iniciarPollingTiempoReal();
+  }
+
+  private verificarParametroQrUrl(): void {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const cod = params.get('verificar');
+      const pin = params.get('pin') || undefined;
+      if (cod) {
+        this.api.verificarBoletoQr(cod, pin).subscribe({
+          next: (ped) => {
+            this.boletoVerificadoQr.set(ped);
+          },
+          error: () => {
+            this.mostrarMensaje('error', `No se encontró el boleto #${cod} para verificación QR`);
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
   }
 
   ngOnDestroy(): void {
@@ -610,16 +697,68 @@ export class App implements OnInit, OnDestroy {
   }
 
   obtenerQrBoleto(ped: Pedido): { size: number; cells: boolean[] } {
-    const texto = [
-      'CAFETERIA UTP - SEDE PIURA',
-      `BOLETO: #${ped.codigo}`,
-      `PIN BARRA: ${ped.pinEntrega || '2026'}`,
-      `ESTUDIANTE: ${ped.nombreCliente || ped.codigoCliente || 'UTP'}`,
-      `RECOJO: ${ped.horarioRecojo || 'INMEDIATO'}`,
-      `TOTAL: S/ ${(ped.total || 0).toFixed(2)}`,
-      `ESTADO: ${ped.estado}`
-    ].join('\n');
-    return this.obtenerDatosQrReal(texto);
+    const origen = typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'http://localhost:4200';
+    const urlVerificacion = `${origen}/?verificar=${encodeURIComponent(ped.codigo)}&pin=${encodeURIComponent(ped.pinEntrega || '2026')}`;
+    return this.obtenerDatosQrReal(urlVerificacion);
+  }
+
+  abrirVistaVerificacionQr(ped: Pedido): void {
+    this.pedidoQrActiva.set(null);
+    this.boletoVerificadoQr.set(ped);
+  }
+
+  calcularSlaComanda(ped: Pedido): { minutos: number; color: string; fondo: string; etiqueta: string; vencido: boolean } {
+    let min = 0;
+    if (ped.fechaRegistro) {
+      const iso = ped.fechaRegistro.replace(' ', 'T');
+      const ts = Date.parse(iso);
+      if (!isNaN(ts)) {
+        min = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+      }
+    }
+    if (min < 5) {
+      return {
+        minutos: min,
+        color: '#0F766E',
+        fondo: 'var(--green-soft)',
+        etiqueta: `SLA EN TIEMPO · ${min}m`,
+        vencido: false
+      };
+    }
+    if (min <= 10) {
+      return {
+        minutos: min,
+        color: '#92400E',
+        fondo: 'var(--amber-soft)',
+        etiqueta: `SLA POR VENCER · ${min}m`,
+        vencido: false
+      };
+    }
+    return {
+      minutos: min,
+      color: 'var(--utp-red)',
+      fondo: 'var(--utp-red-soft)',
+      etiqueta: `¡SLA VENCIDO · PRIORIDAD! (${min}m)`,
+      vencido: true
+    };
+  }
+
+  obtenerEtiquetaNutricional(p: Producto): string {
+    const n = (p.nombre || '').toLowerCase();
+    if (n.includes('pollo al horno')) return '340 kcal · Alto en proteína · Horneado';
+    if (n.includes('pan con pollo')) return '360 kcal · Proteína magra · Contiene gluten';
+    if (n.includes('hamburguesa')) return '520 kcal · Carne 100% res · Recién hecho';
+    if (n.includes('chicharrón') || n.includes('chicharron')) return '580 kcal · Tradicional · Sin conservantes';
+    if (n.includes('papa rellena')) return '410 kcal · Relleno casero · Contiene huevo';
+    if (n.includes('empanada')) return '310 kcal · Masa horneada · Contiene gluten';
+    if (n.includes('alitas')) return '540 kcal · Proteína crocante · Porción completa';
+    if (n.includes('café') || n.includes('cafe')) return '15 kcal · 100% Grano pasado · Antioxidante';
+    if (n.includes('refresco')) return '90 kcal · Fruta natural · Vitamina C';
+    if (n.includes('alfajor')) return '280 kcal · Contiene lácteos y gluten';
+    if (n.includes('mazamorra')) return '240 kcal · Maíz morado natural · Sin lácteos';
+    return '290 kcal · Preparación fresca del día';
   }
 
   obtenerQrPasarela(): { size: number; cells: boolean[] } {
@@ -970,6 +1109,7 @@ export class App implements OnInit, OnDestroy {
     this.cremasSeleccionadas.set([]);
     this.extrasSeleccionados.set([]);
     this.modoHorarioRecojo.set('INMEDIATO');
+    this.canjearPuntosUtp.set(false);
   }
 
   // ================= PASARELA "UTP PAY" Y EMISIÓN DE ORDEN =================
@@ -1064,6 +1204,7 @@ export class App implements OnInit, OnDestroy {
       horarioRecojo: this.horarioRecojoFinal(),
       cremasYExtras: this.resumenCremasYExtras() || undefined,
       montoExtras: this.montoExtrasCarrito(),
+      descuentoPuntos: this.descuentoPuntosCarrito(),
       items: this.carrito().map((i) => ({
         productoId: i.producto.id!,
         cantidad: i.cantidad
@@ -1080,6 +1221,7 @@ export class App implements OnInit, OnDestroy {
         this.referenciaPago = '';
         this.mensajePedido = '';
         this.modoHorarioRecojo.set('INMEDIATO');
+        this.canjearPuntosUtp.set(false);
         this.reproducirCampanaSonora('nuevo');
         this.mostrarMensaje(
           'exito',

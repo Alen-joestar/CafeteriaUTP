@@ -71,6 +71,14 @@ export class ApiService {
     );
   }
 
+  verificarBoletoQr(codigo: string, pin?: string): Observable<Pedido> {
+    let params = new HttpParams().set('codigo', codigo);
+    if (pin) {
+      params = params.set('pin', pin);
+    }
+    return this.http.get<Pedido>(`${this.baseUrl}/pedidos/verificar-qr`, { params });
+  }
+
   cambiarEstadoCocina(
     cocinaAbierta: boolean,
     motivoPausa?: string

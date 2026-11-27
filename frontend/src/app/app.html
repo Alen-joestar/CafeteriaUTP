@@ -116,7 +116,12 @@
         <div class="user-meta-info">
           <strong>{{ sesion()?.nombreCompleto || sesion()?.codigo || 'Invitado UTP' }}</strong>
           <div class="user-pass-sub">
-            <small>{{ sesion()?.codigo || 'SIN SESIÓN' }}</small>
+            <small>
+              {{ sesion()?.codigo || 'SIN SESIÓN' }}
+              @if (estaAutenticado() && !esCafeteria()) {
+                · ★ {{ puntosUtpDisponibles() }} pts
+              }
+            </small>
             <span class="role-chip-fixed">{{ sesion()?.rol || 'VISITANTE' }}</span>
           </div>
         </div>
@@ -316,7 +321,13 @@
 
               <span class="cat-mini-label">{{ p.categoria }}</span>
               <h3>{{ p.nombre }}</h3>
-              <p>{{ p.descripcion || 'Preparado al instante en cafetería.' }}</p>
+              <p style="margin-bottom: 6px;">{{ p.descripcion || 'Preparado al instante en cafetería.' }}</p>
+              <div
+                class="font-mono"
+                style="font-size: 0.65rem; color: var(--muted); background: var(--bg-warm); padding: 3px 8px; border-radius: 99px; margin: 0 auto 12px; width: fit-content;"
+              >
+                {{ obtenerEtiquetaNutricional(p) }}
+              </div>
 
               <div class="dome-footer">
                 <span class="price-mono">S/ {{ p.precio | number: '1.2-2' }}</span>
@@ -534,6 +545,12 @@
                   <div class="receipt-row" style="color: var(--green);">
                     <span><strong>- Descuento Combo Universitario UTP</strong></span>
                     <strong>-S/ {{ ped.descuentoCombo | number: '1.2-2' }}</strong>
+                  </div>
+                }
+                @if (ped.descuentoPuntos && ped.descuentoPuntos > 0) {
+                  <div class="receipt-row" style="color: var(--green);">
+                    <span><strong>- Canje 20 Puntos UTP</strong></span>
+                    <strong>-S/ {{ ped.descuentoPuntos | number: '1.2-2' }}</strong>
                   </div>
                 }
               </div>
@@ -1006,6 +1023,18 @@
                             · Ref: {{ ped.referenciaPago }}
                           }
                         </small>
+                        @if (ped.estado === 'NUEVO' || ped.estado === 'EN_PREPARACION') {
+                          @if (calcularSlaComanda(ped); as sla) {
+                            <div
+                              class="font-mono"
+                              [style.background]="sla.fondo"
+                              [style.color]="sla.color"
+                              style="font-size: 0.66rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin-top: 4px; width: fit-content; border: 1px solid currentColor;"
+                            >
+                              {{ sla.etiqueta }}
+                            </div>
+                          }
+                        }
                       </div>
                       <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                         <span
@@ -1229,6 +1258,9 @@
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <strong>S/ {{ pr.precio | number: '1.2-2' }}</strong>
+                    <button type="button" class="action-pill" (click)="productoKardexModal.set(pr)">
+                      <span>Kardex</span>
+                    </button>
                     <button type="button" class="action-pill" (click)="sumarStockRapido(pr, 5)">
                       <svg class="icon-sm" viewBox="0 0 24 24">
                         <path d="M5 12h14" />
@@ -1531,6 +1563,27 @@
                   {{ sugerenciaComboCarrito() }}
                 </div>
               }
+
+              @if (estaAutenticado() && !esCafeteria()) {
+                <div
+                  class="font-mono"
+                  style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-warm); padding: 6px 8px; margin-top: 6px; border: 1px solid var(--ink); font-size: 0.68rem;"
+                >
+                  <span><strong>★ PUNTOS UTP:</strong> {{ puntosUtpDisponibles() }} disp.</span>
+                  @if (puntosUtpDisponibles() >= 20) {
+                    <button
+                      type="button"
+                      class="chip-mini"
+                      [class.active]="canjearPuntosUtp()"
+                      (click)="canjearPuntosUtp.set(!canjearPuntosUtp())"
+                    >
+                      {{ canjearPuntosUtp() ? 'Canje Activo (-S/ 2.00)' : 'Canjear 20 pts (-S/ 2.00)' }}
+                    </button>
+                  } @else {
+                    <span style="color: var(--muted);">Canje a los 20 pts</span>
+                  }
+                </div>
+              }
             </div>
           }
         </div>
@@ -1621,6 +1674,18 @@
               <span style="font-size: 0.72rem; font-weight: 700;">DESCUENTO COMBO UTP:</span>
               <strong style="font-size: 0.85rem;">
                 -S/ {{ descuentoComboCarrito() | number: '1.2-2' }}
+              </strong>
+            </div>
+          }
+
+          @if (descuentoPuntosCarrito() > 0) {
+            <div
+              style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 2px; color: var(--green);"
+              class="font-mono"
+            >
+              <span style="font-size: 0.72rem; font-weight: 700;">CANJE 20 PUNTOS UTP:</span>
+              <strong style="font-size: 0.85rem;">
+                -S/ {{ descuentoPuntosCarrito() | number: '1.2-2' }}
               </strong>
             </div>
           }
@@ -1793,12 +1858,19 @@
           PIN: {{ pedQr.pinEntrega || '2026' }}
         </div>
 
-        <div style="display: flex; gap: 10px; justify-content: center;">
-          @if (esCafeteria() && pedQr.estado !== 'ENTREGADO' && pedQr.estado !== 'CANCELADO') {
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="action-pill"
+            (click)="abrirVistaVerificacionQr(pedQr)"
+          >
+            <span>Abrir Vista Web de Verificación</span>
+          </button>
+          @if (esCafeteria() && pedQr.estado === 'LISTO') {
             <button
               type="button"
               class="btn-emitir"
-              style="background: var(--green);"
+              style="background: var(--green); width: auto;"
               (click)="validarEntregaPorPinEnBarra(pedQr.pinEntrega || pedQr.codigo); pedidoQrActiva.set(null)"
             >
               CONFIRMAR ENTREGA EN BARRA
@@ -1806,6 +1878,118 @@
           }
           <button type="button" class="tab-arc-btn" (click)="pedidoQrActiva.set(null)">
             Cerrar Pase
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL VISTA WEB DE VERIFICACIÓN OFICIAL (AL ESCANEAR QR) ==================== -->
+  @if (boletoVerificadoQr(); as verif) {
+    <div class="modal-overlay" (click)="boletoVerificadoQr.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <div style="text-align: center; margin-bottom: 12px;">
+          <span class="ready-code" style="background: var(--green); font-size: 0.76rem; padding: 5px 14px;">
+            ✓ BOLETO DIGITAL AUTÉNTICO VERIFICADO · CAFETERÍA UTP
+          </span>
+          <h3 style="margin-top: 10px; font-size: 1.35rem;">ORDEN #{{ verif.codigo }}</h3>
+          <div class="font-mono" style="font-size: 0.76rem; color: var(--muted);">
+            PIN DE BARRA: <strong>{{ verif.pinEntrega || '2026' }}</strong> · Estado:
+            <strong style="color: var(--ink);">{{ verif.estado }}</strong>
+          </div>
+        </div>
+
+        <div class="boleta-thermal" style="margin-bottom: 14px;">
+          <div><strong>ESTUDIANTE:</strong> {{ verif.nombreCliente || 'Estudiante UTP' }} ({{ verif.codigoCliente || 'UTP' }})</div>
+          <div><strong>FECHA / HORA:</strong> {{ verif.fechaRegistro }}</div>
+          <div><strong>HORARIO RECOJO:</strong> {{ verif.horarioRecojo || 'INMEDIATO' }}</div>
+          <div><strong>PAGO:</strong> {{ verif.metodoPago }} ({{ verif.estadoPago }})</div>
+          <div style="border-top: 1px dashed var(--ink); margin: 8px 0; padding-top: 8px;">
+            @for (it of verif.items; track $index) {
+              <div style="display: flex; justify-content: space-between;">
+                <span>{{ it.cantidad }}x {{ it.nombreProducto }}</span>
+                <strong>S/ {{ it.subtotal | number: '1.2-2' }}</strong>
+              </div>
+            }
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700;">
+            <span>TOTAL VERIFICADO:</span>
+            <span>S/ {{ verif.total | number: '1.2-2' }}</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          @if (esCafeteria() && verif.estado === 'LISTO') {
+            <button
+              type="button"
+              class="btn-emitir"
+              style="background: var(--green);"
+              (click)="validarEntregaPorPinEnBarra(verif.pinEntrega || verif.codigo); boletoVerificadoQr.set(null)"
+            >
+              ENTREGAR PEDIDO AHORA
+            </button>
+          }
+          <button type="button" class="tab-arc-btn" (click)="boletoVerificadoQr.set(null)">
+            Cerrar Verificación
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== MODAL KARDEX / AUDITORÍA DE STOCK POR PLATO ==================== -->
+  @if (productoKardexModal(); as prodK) {
+    <div class="modal-overlay" (click)="productoKardexModal.set(null)">
+      <div class="modal-dome" (click)="$event.stopPropagation()">
+        <span class="arch-hero-tag">KARDEX E INVENTARIO · AUDITORÍA TI</span>
+        <h3 style="margin: 8px 0 4px;">{{ prodK.nombre }} (#{{ prodK.id }})</h3>
+        <p class="font-mono" style="font-size: 0.74rem; color: var(--muted); margin-bottom: 12px;">
+          Categoría: {{ prodK.categoria }} · Precio Unitario: S/ {{ prodK.precio | number: '1.2-2' }}
+        </p>
+
+        @if (resumenKardexProducto(); as kdx) {
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;" class="font-mono">
+            <div style="background: var(--bg-warm); border: 1px solid var(--ink); padding: 10px;">
+              <small style="color: var(--muted);">STOCK DISPONIBLE</small><br />
+              <strong style="font-size: 1.15rem;">{{ prodK.stock ?? '∞' }} u.</strong>
+            </div>
+            <div style="background: var(--amber-soft); border: 1px solid #92400E; padding: 10px; color: #92400E;">
+              <small>EN COCINA / BARRA</small><br />
+              <strong style="font-size: 1.15rem;">{{ kdx.enCurso }} u.</strong>
+            </div>
+            <div style="background: var(--green-soft); border: 1px solid #0F766E; padding: 10px; color: #0F766E;">
+              <small>ENTREGADAS (VENTA)</small><br />
+              <strong style="font-size: 1.05rem;">{{ kdx.entregadas }} u. (S/ {{ kdx.recaudado | number: '1.2-2' }})</strong>
+            </div>
+            <div style="background: var(--utp-red-soft); border: 1px solid var(--utp-red); padding: 10px; color: var(--utp-red);">
+              <small>DEVUELTAS (CANCELADAS)</small><br />
+              <strong style="font-size: 1.15rem;">{{ kdx.devueltasCanceladas }} u.</strong>
+            </div>
+          </div>
+
+          <div class="font-mono" style="font-size: 0.72rem; margin-bottom: 12px;">
+            <strong>ÚLTIMOS MOVIMIENTOS DE BOLETOS:</strong>
+            @for (m of kdx.movimientos; track $index) {
+              <div class="receipt-row">
+                <span>#{{ m.codigo }} · {{ m.cliente }} ({{ m.cantidad }}u)</span>
+                <strong>{{ m.estado }}</strong>
+              </div>
+            } @empty {
+              <div style="color: var(--muted); padding: 8px 0;">Sin movimientos registrados en las órdenes actuales.</div>
+            }
+          </div>
+        }
+
+        <div style="display: flex; gap: 10px;">
+          <button
+            type="button"
+            class="btn-emitir"
+            (click)="sumarStockRapido(prodK, 10); productoKardexModal.set(null)"
+          >
+            +10 UNIDADES AL STOCK
+          </button>
+          <button type="button" class="tab-arc-btn" (click)="productoKardexModal.set(null)">
+            Cerrar Kardex
           </button>
         </div>
       </div>
