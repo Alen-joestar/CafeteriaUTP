@@ -56,6 +56,7 @@ export class App implements OnInit, OnDestroy {
   regNombre = '';
   regPassword = '';
   mostrarModalPassword = signal(false);
+  expandirCambioPassword = signal(false);
   passActual = '';
   passNueva = '';
 
@@ -938,6 +939,7 @@ export class App implements OnInit, OnDestroy {
   abrirModalCambioPassword(): void {
     this.passActual = '';
     this.passNueva = '';
+    this.expandirCambioPassword.set(false);
     this.mostrarModalPassword.set(true);
   }
 

@@ -1485,32 +1485,17 @@
           @if (estaAutenticado() && !esCafeteria()) {
             <div
               class="font-mono"
-              style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 12px; padding: 7px 10px; margin-top: 8px; text-align: left;"
+              style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 10px; padding: 6px 10px; margin-top: 8px; text-align: left;"
             >
-              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem;">
-                <span><strong>★ MIS PUNTOS UTP:</strong></span>
-                <strong style="color: var(--utp-red);">{{ puntosUtpDisponibles() }} / 100 pts</strong>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.68rem;">
+                <span><strong>★ PUNTOS UTP:</strong> {{ puntosUtpDisponibles() }} / 100</span>
+                <span style="color: var(--muted);">100 pts = -S/ 2.00</span>
               </div>
-              <div style="height: 6px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin: 5px 0;">
+              <div style="height: 5px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin-top: 4px;">
                 <div
                   style="height: 100%; background: var(--utp-red); transition: width 0.25s ease;"
                   [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
                 ></div>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.64rem; color: var(--muted);">
-                <span>1 sol entregado = 1 pto</span>
-                @if (puntosUtpDisponibles() >= 100 && carrito().length > 0) {
-                  <button
-                    type="button"
-                    class="chip-mini"
-                    [class.active]="canjearPuntosUtp()"
-                    (click)="canjearPuntosUtp.set(!canjearPuntosUtp())"
-                  >
-                    {{ canjearPuntosUtp() ? 'Canje Activo (-S/ 2.00)' : 'Canjear 100 pts (-S/ 2.00)' }}
-                  </button>
-                } @else {
-                  <span>Canje: 100 pts = -S/ 2.00</span>
-                }
               </div>
             </div>
           }
@@ -1597,6 +1582,20 @@
                   style="font-size: 0.68rem; font-weight: 700; padding: 6px 8px; margin-top: 6px; border: 1px dashed currentColor;"
                 >
                   {{ sugerenciaComboCarrito() }}
+                </div>
+              }
+
+              @if (estaAutenticado() && !esCafeteria() && puntosUtpDisponibles() >= 100) {
+                <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span class="font-mono" style="font-size: 0.68rem; font-weight: 700;">RECOMPENSA DISPONIBLE:</span>
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="canjearPuntosUtp()"
+                    (click)="canjearPuntosUtp.set(!canjearPuntosUtp())"
+                  >
+                    {{ canjearPuntosUtp() ? '✓ Canje 100 pts (-S/ 2.00)' : 'Usar 100 pts (-S/ 2.00)' }}
+                  </button>
                 </div>
               }
             </div>
@@ -2109,13 +2108,46 @@
     <div class="modal-overlay" (click)="mostrarModalPassword.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
         <span class="arch-hero-tag">MI PERFIL UNIVERSITARIO · UTP</span>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 12px; gap: 10px; flex-wrap: wrap;">
-          <div>
-            <h3 style="margin-bottom: 2px;">{{ sesion()?.nombreCompleto || sesion()?.codigo }}</h3>
-            <small class="font-mono" style="color: var(--muted);">
-              Código: {{ sesion()?.codigo }} · Rol: {{ sesion()?.rol }}
+
+        <div style="margin: 8px 0 12px; padding-bottom: 10px; border-bottom: 1px dashed var(--line);">
+          <h3 style="margin-bottom: 2px;">{{ sesion()?.nombreCompleto || sesion()?.codigo }}</h3>
+          <small class="font-mono" style="color: var(--muted);">
+            Código: <strong>{{ sesion()?.codigo }}</strong> · Correo: {{ sesion()?.correo || 'Institucional' }} · Rol: <strong>{{ sesion()?.rol }}</strong>
+          </small>
+        </div>
+
+        @if (!esCafeteria()) {
+          <div
+            class="font-mono"
+            style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 12px; padding: 9px 12px; margin-bottom: 14px;"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-bottom: 5px;">
+              <strong>★ Puntos UTP Acumulados:</strong>
+              <strong style="color: var(--utp-red);">{{ puntosUtpDisponibles() }} / 100 pts</strong>
+            </div>
+            <div style="height: 6px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin-bottom: 4px;">
+              <div
+                style="height: 100%; background: var(--utp-red);"
+                [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
+              ></div>
+            </div>
+            <small style="color: var(--muted); font-size: 0.67rem;">
+              1 sol entregado = 1 pto · Al juntar 100 pts canjeas -S/ 2.00 en tu ticket.
             </small>
           </div>
+        }
+
+        <!-- Opciones rápidas de Perfil: Cambiar contraseña (desplegable compacto) o Cambiar de usuario -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+          <button
+            type="button"
+            class="action-pill"
+            [class.active-filter]="expandirCambioPassword()"
+            (click)="expandirCambioPassword.set(!expandirCambioPassword())"
+          >
+            <span>{{ expandirCambioPassword() ? '▾ Ocultar cambio de contraseña' : '▸ Cambiar mi contraseña' }}</span>
+          </button>
+
           <button
             type="button"
             class="action-pill"
@@ -2125,30 +2157,11 @@
           </button>
         </div>
 
-        @if (!esCafeteria()) {
-          <div
-            class="font-mono"
-            style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 16px; padding: 12px 14px; margin-bottom: 16px;"
+        @if (expandirCambioPassword()) {
+          <form
+            (ngSubmit)="guardarCambioPassword()"
+            style="background: var(--bg-warm); border: 1px dashed var(--ink); padding: 12px; margin-bottom: 12px;"
           >
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <strong>★ PROGRAMA DE FIDELIZACIÓN PUNTOS UTP</strong>
-              <strong style="color: var(--utp-red); font-size: 0.95rem;">{{ puntosUtpDisponibles() }} / 100 pts</strong>
-            </div>
-            <div style="height: 8px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin-bottom: 6px;">
-              <div
-                style="height: 100%; background: var(--utp-red);"
-                [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
-              ></div>
-            </div>
-            <small style="color: var(--muted); display: block; line-height: 1.35;">
-              Acumulas <strong>1 Punto UTP</strong> por cada <strong>S/ 1.00</strong> en pedidos entregados. Al llegar a <strong>100 puntos</strong> desbloqueas un canje de <strong>-S/ 2.00</strong> en tu Ticket de Orden.
-            </small>
-          </div>
-        }
-
-        <div style="border-top: 1px dashed var(--line); padding-top: 12px;">
-          <h4 style="margin-bottom: 10px; font-size: 0.95rem;">Cambiar Contraseña de Acceso</h4>
-          <form (ngSubmit)="guardarCambioPassword()">
             <div class="field-group">
               <label>Contraseña Actual</label>
               <input
@@ -2159,7 +2172,7 @@
                 required
               />
             </div>
-            <div class="field-group">
+            <div class="field-group" style="margin-bottom: 10px;">
               <label>Nueva Contraseña (mín. 8 caracteres)</label>
               <input
                 type="password"
@@ -2169,15 +2182,16 @@
                 required
               />
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 14px;">
-              <button type="submit" class="btn-emitir" [disabled]="cargando()">
-                ACTUALIZAR CONTRASEÑA
-              </button>
-              <button type="button" class="tab-arc-btn" (click)="mostrarModalPassword.set(false)">
-                Cerrar
-              </button>
-            </div>
+            <button type="submit" class="btn-emitir" style="padding: 9px;" [disabled]="cargando()">
+              GUARDAR NUEVA CONTRASEÑA
+            </button>
           </form>
+        }
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+          <button type="button" class="tab-arc-btn" (click)="mostrarModalPassword.set(false)">
+            Cerrar Perfil
+          </button>
         </div>
       </div>
     </div>
@@ -2301,23 +2315,34 @@
   @if (mostrarModalAuth()) {
     <div class="modal-overlay" (click)="mostrarModalAuth.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
-        <div class="auth-mode-switch" style="flex-wrap: wrap;">
-          <button
-            type="button"
-            class="tab-arc-btn"
-            [class.active]="modoAuth() === 'LOGIN'"
-            (click)="modoAuth.set('LOGIN')"
-          >
-            Iniciar Sesión
-          </button>
-          <button
-            type="button"
-            class="tab-arc-btn"
-            [class.active]="modoAuth() === 'REGISTRO'"
-            (click)="modoAuth.set('REGISTRO')"
-          >
-            Crear Cuenta Estudiante
-          </button>
+        <div class="auth-mode-switch" style="flex-wrap: wrap; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="modoAuth() === 'LOGIN'"
+              (click)="modoAuth.set('LOGIN')"
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              class="tab-arc-btn"
+              [class.active]="modoAuth() === 'REGISTRO'"
+              (click)="modoAuth.set('REGISTRO')"
+            >
+              Crear Cuenta Estudiante
+            </button>
+          </div>
+          @if (estaAutenticado()) {
+            <button
+              type="button"
+              class="action-pill"
+              (click)="mostrarModalAuth.set(false); abrirModalCambioPassword()"
+            >
+              <span>← Volver a Mi Perfil</span>
+            </button>
+          }
         </div>
 
         @if (modoAuth() === 'LOGIN') {
