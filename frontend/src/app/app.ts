@@ -601,7 +601,7 @@ export class App implements OnInit, OnDestroy {
 
   private restaurarPreferenciasPerfil(): void {
     const pagoPref = localStorage.getItem('cafeteria_pref_pago');
-    if (pagoPref) {
+    if (pagoPref && ['YAPE', 'PLIN', 'TARJETA'].includes(pagoPref)) {
       this.metodoPago = pagoPref;
     }
     const cremaPref = localStorage.getItem('cafeteria_pref_crema');
