@@ -116,12 +116,7 @@
         <div class="user-meta-info">
           <strong>{{ sesion()?.nombreCompleto || sesion()?.codigo || 'Invitado UTP' }}</strong>
           <div class="user-pass-sub">
-            <small>
-              {{ sesion()?.codigo || 'SIN SESIÓN' }}
-              @if (estaAutenticado() && !esCafeteria()) {
-                · ★ {{ puntosUtpDisponibles() }} pts
-              }
-            </small>
+            <small>{{ sesion()?.codigo || 'SIN SESIÓN' }}</small>
             <span class="role-chip-fixed">{{ sesion()?.rol || 'VISITANTE' }}</span>
           </div>
         </div>
@@ -129,13 +124,19 @@
 
       @if (estaAutenticado()) {
         <div class="pass-actions">
-          <button type="button" class="btn-mini" (click)="abrirModalLogin()">
-            <span>Cuenta</span>
-          </button>
           <button type="button" class="btn-mini" (click)="abrirModalCambioPassword()">
-            <span>Clave</span>
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span>Mi Perfil</span>
           </button>
           <button type="button" class="btn-mini" (click)="cerrarSesion()">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
             <span>Salir</span>
           </button>
         </div>
@@ -1480,6 +1481,39 @@
             <span>TICKET DE ORDEN</span>
           </h3>
           <small>SEDE PIURA · CAJA RÁPIDA</small>
+
+          @if (estaAutenticado() && !esCafeteria()) {
+            <div
+              class="font-mono"
+              style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 12px; padding: 7px 10px; margin-top: 8px; text-align: left;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem;">
+                <span><strong>★ MIS PUNTOS UTP:</strong></span>
+                <strong style="color: var(--utp-red);">{{ puntosUtpDisponibles() }} / 100 pts</strong>
+              </div>
+              <div style="height: 6px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin: 5px 0;">
+                <div
+                  style="height: 100%; background: var(--utp-red); transition: width 0.25s ease;"
+                  [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
+                ></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.64rem; color: var(--muted);">
+                <span>1 sol entregado = 1 pto</span>
+                @if (puntosUtpDisponibles() >= 100 && carrito().length > 0) {
+                  <button
+                    type="button"
+                    class="chip-mini"
+                    [class.active]="canjearPuntosUtp()"
+                    (click)="canjearPuntosUtp.set(!canjearPuntosUtp())"
+                  >
+                    {{ canjearPuntosUtp() ? 'Canje Activo (-S/ 2.00)' : 'Canjear 100 pts (-S/ 2.00)' }}
+                  </button>
+                } @else {
+                  <span>Canje: 100 pts = -S/ 2.00</span>
+                }
+              </div>
+            </div>
+          }
         </div>
 
         <div class="receipt-items">
@@ -1563,27 +1597,6 @@
                   style="font-size: 0.68rem; font-weight: 700; padding: 6px 8px; margin-top: 6px; border: 1px dashed currentColor;"
                 >
                   {{ sugerenciaComboCarrito() }}
-                </div>
-              }
-
-              @if (estaAutenticado() && !esCafeteria()) {
-                <div
-                  class="font-mono"
-                  style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-warm); padding: 6px 8px; margin-top: 6px; border: 1px solid var(--ink); font-size: 0.68rem;"
-                >
-                  <span><strong>★ PUNTOS UTP:</strong> {{ puntosUtpDisponibles() }} / 100 pts</span>
-                  @if (puntosUtpDisponibles() >= 100) {
-                    <button
-                      type="button"
-                      class="chip-mini"
-                      [class.active]="canjearPuntosUtp()"
-                      (click)="canjearPuntosUtp.set(!canjearPuntosUtp())"
-                    >
-                      {{ canjearPuntosUtp() ? 'Canje Activo (-S/ 2.00)' : 'Canjear 100 pts (-S/ 2.00)' }}
-                    </button>
-                  } @else {
-                    <span style="color: var(--muted);">Meta: 100 pts (-S/ 2.00)</span>
-                  }
                 </div>
               }
             </div>
@@ -2091,42 +2104,81 @@
     </div>
   }
 
-  <!-- ==================== MODAL CAMBIO DE CONTRASEÑA PROPIA ==================== -->
+  <!-- ==================== MODAL MI PERFIL, PUNTOS UTP Y CAMBIO DE CONTRASEÑA ==================== -->
   @if (mostrarModalPassword()) {
     <div class="modal-overlay" (click)="mostrarModalPassword.set(false)">
       <div class="modal-dome" (click)="$event.stopPropagation()">
-        <span class="arch-hero-tag">SEGURIDAD DE CUENTA · UTP</span>
-        <h3 style="margin: 8px 0 6px;">Actualizar Contraseña</h3>
-        <form (ngSubmit)="guardarCambioPassword()">
-          <div class="field-group">
-            <label>Contraseña Actual</label>
-            <input
-              type="password"
-              name="passActual"
-              placeholder="Ingresa tu clave actual"
-              [(ngModel)]="passActual"
-              required
-            />
+        <span class="arch-hero-tag">MI PERFIL UNIVERSITARIO · UTP</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 12px; gap: 10px; flex-wrap: wrap;">
+          <div>
+            <h3 style="margin-bottom: 2px;">{{ sesion()?.nombreCompleto || sesion()?.codigo }}</h3>
+            <small class="font-mono" style="color: var(--muted);">
+              Código: {{ sesion()?.codigo }} · Rol: {{ sesion()?.rol }}
+            </small>
           </div>
-          <div class="field-group">
-            <label>Nueva Contraseña (mín. 8 caracteres)</label>
-            <input
-              type="password"
-              name="passNueva"
-              placeholder="Mínimo 8 caracteres"
-              [(ngModel)]="passNueva"
-              required
-            />
+          <button
+            type="button"
+            class="action-pill"
+            (click)="mostrarModalPassword.set(false); abrirModalLogin()"
+          >
+            <span>Cambiar de Usuario</span>
+          </button>
+        </div>
+
+        @if (!esCafeteria()) {
+          <div
+            class="font-mono"
+            style="background: var(--bg-warm); border: 1.5px solid var(--ink); border-radius: 16px; padding: 12px 14px; margin-bottom: 16px;"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <strong>★ PROGRAMA DE FIDELIZACIÓN PUNTOS UTP</strong>
+              <strong style="color: var(--utp-red); font-size: 0.95rem;">{{ puntosUtpDisponibles() }} / 100 pts</strong>
+            </div>
+            <div style="height: 8px; background: #DED8CA; border-radius: 99px; overflow: hidden; margin-bottom: 6px;">
+              <div
+                style="height: 100%; background: var(--utp-red);"
+                [style.width.%]="puntosUtpDisponibles() > 100 ? 100 : puntosUtpDisponibles()"
+              ></div>
+            </div>
+            <small style="color: var(--muted); display: block; line-height: 1.35;">
+              Acumulas <strong>1 Punto UTP</strong> por cada <strong>S/ 1.00</strong> en pedidos entregados. Al llegar a <strong>100 puntos</strong> desbloqueas un canje de <strong>-S/ 2.00</strong> en tu Ticket de Orden.
+            </small>
           </div>
-          <div style="display: flex; gap: 10px; margin-top: 16px;">
-            <button type="submit" class="btn-emitir" [disabled]="cargando()">
-              ACTUALIZAR CONTRASEÑA
-            </button>
-            <button type="button" class="tab-arc-btn" (click)="mostrarModalPassword.set(false)">
-              Cancelar
-            </button>
-          </div>
-        </form>
+        }
+
+        <div style="border-top: 1px dashed var(--line); padding-top: 12px;">
+          <h4 style="margin-bottom: 10px; font-size: 0.95rem;">Cambiar Contraseña de Acceso</h4>
+          <form (ngSubmit)="guardarCambioPassword()">
+            <div class="field-group">
+              <label>Contraseña Actual</label>
+              <input
+                type="password"
+                name="passActual"
+                placeholder="Ingresa tu contraseña actual"
+                [(ngModel)]="passActual"
+                required
+              />
+            </div>
+            <div class="field-group">
+              <label>Nueva Contraseña (mín. 8 caracteres)</label>
+              <input
+                type="password"
+                name="passNueva"
+                placeholder="Mínimo 8 caracteres"
+                [(ngModel)]="passNueva"
+                required
+              />
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 14px;">
+              <button type="submit" class="btn-emitir" [disabled]="cargando()">
+                ACTUALIZAR CONTRASEÑA
+              </button>
+              <button type="button" class="tab-arc-btn" (click)="mostrarModalPassword.set(false)">
+                Cerrar
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   }

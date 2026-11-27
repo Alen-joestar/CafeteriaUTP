@@ -271,8 +271,8 @@
 
 .pass-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 5px;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 .pass-actions.single-col {
